@@ -11,9 +11,10 @@
 #include "client.h"
 
 
+#define PORTNUM_AGENT 8068
 #define PORTNUM 8067
-int fd_sock;
-struct sockaddr_in server_addr;
+int fd_sock, fd_sock_agent;
+struct sockaddr_in server_addr, server_addr_agent;
 struct hostent *server;
 
 #define BUFFERLEN 4096
@@ -23,6 +24,11 @@ byte local_buffer[BUFFERLEN];
 void send_buffer(byte* buffer, size_t len){
   write(fd_sock, &len, sizeof(size_t));
   write(fd_sock, buffer, len);  
+}
+
+void send_agent_buffer(byte* buffer, size_t len){
+  write(fd_sock_agent, &len, sizeof(size_t));
+  write(fd_sock_agent, buffer, len);  
 }
 
 byte* recv_buffer(size_t* len){
@@ -77,12 +83,32 @@ int main(int argc, char *argv[])
   server_addr.sin_family = AF_INET;
   memcpy(&server_addr.sin_addr.s_addr,server->h_addr,server->h_length);
   server_addr.sin_port = htons(PORTNUM);
-  if( connect(fd_sock, (struct sockaddr *)&server_addr, sizeof(server_addr)) < 0){
+  if(connect(fd_sock, (struct sockaddr *)&server_addr, sizeof(server_addr)) < 0){
     printf("Can't connect\n");
     exit(-1);
   }
 
   printf("[TC] Connected to enclave host!\n");
+
+  /************ Agent socket ************/
+
+  fd_sock_agent = socket(AF_INET, SOCK_STREAM, 0);
+  if (fd_sock_agent < 0){
+    printf("No socket\n");
+    exit(-1);
+  }
+  server_addr_agent.sin_family = AF_INET;
+  memcpy(&server_addr_agent.sin_addr.s_addr,server->h_addr,server->h_length);
+  server_addr_agent.sin_port = htons(PORTNUM_AGENT);
+  if (connect(fd_sock_agent, (struct sockaddr *)&server_addr_agent, sizeof(server_addr_agent)) < 0){
+    printf("Can't connect\n");
+    exit(-1);
+  }
+
+  printf("[TC] Connected to agent socket!\n");
+
+  /**************************************/
+
 
   /* Establish channel */
   trusted_client_init();
@@ -112,11 +138,15 @@ int main(int argc, char *argv[])
       exit(0);
     }
     else{
-      send_wc_message((char*)local_buffer);
-      size_t reply_size;
-      byte* reply = recv_buffer(&reply_size);
-      trusted_client_read_reply(reply, reply_size);
-      free(reply);
+      if (local_buffer[0] == 'a') {
+        send_agent_buffer(local_buffer, 5);
+      } else {
+        send_wc_message((char*)local_buffer);
+        size_t reply_size;
+        byte* reply = recv_buffer(&reply_size);
+        trusted_client_read_reply(reply, reply_size);
+        free(reply);
+      }
     }
   }
   return 0;
