@@ -2,4 +2,6 @@
 *.o
 *.riscv
 *.eapp_riscv
+*build/
+*.vscode
 *~

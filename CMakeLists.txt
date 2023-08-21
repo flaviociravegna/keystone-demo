@@ -45,6 +45,8 @@ set(KEYSTONE_LIB_EAPP ${KEYSTONE_SDK_DIR}/lib/libkeystone-eapp.a)
 
 # find program "makeself"
 find_program(MAKESELF makeself)
+# multi-threading support
+find_package(Threads REQUIRED)
 
 # trusted client
 add_executable(trusted_client.riscv
@@ -67,11 +69,10 @@ set(package_name "demo-server.ke")
 set(package_script "./demo-server.riscv")
 
 add_executable(${host_bin} ${host_src})
-target_link_libraries(${host_bin} ${KEYSTONE_LIB_HOST} ${KEYSTONE_LIB_EDGE} ${KEYSTONE_LIB_VERIFIER})
+target_link_libraries(${host_bin} ${KEYSTONE_LIB_HOST} ${KEYSTONE_LIB_EDGE} ${KEYSTONE_LIB_VERIFIER} Threads::Threads)
 
-set(eyrie_files_to_copy eyrie-rt)
+set(eyrie_files_to_copy .options_log eyrie-rt)
 add_eyrie_runtime(${eapp_bin}-eyrie
-  "v1.0.0"
   ${eyrie_plugins}
   ${eyrie_files_to_copy})
 
