@@ -9,6 +9,11 @@
 #include <unistd.h>
 #include "trusted_client.h"
 #include "client.h"
+#include "db_access.h"
+
+
+#include <vector>
+#include <sstream>
 
 
 #define PORTNUM_AGENT 8068
@@ -54,6 +59,28 @@ byte* recv_buffer(size_t* len){
 
   *len = reply_size;
   return reply;
+}
+
+void do_something() {
+  sqlite3 *db = open_database();
+  init_db(db, "127.0.0.1", PORTNUM_AGENT);
+
+  std::string s = get_all_entries(db);
+  std::stringstream ss(s);
+
+  std::string segment;
+  std::vector<std::string> seglist;
+
+  while(std::getline(ss, segment, ';'))
+    seglist.push_back(segment);
+
+  for (int i = 0; i < seglist.size(); i++)
+    std::cout << "DB entry: " << seglist.at(i) << std::endl;
+
+  //while (std::getline(ss, str, ';')) 
+      
+
+  close_database(db);
 }
 
 int main(int argc, char *argv[])
@@ -139,6 +166,7 @@ int main(int argc, char *argv[])
     }
     else{
       if (local_buffer[0] == 'a') {
+        do_something();
         send_agent_buffer(local_buffer, 5);
       } else {
         send_wc_message((char*)local_buffer);
