@@ -23,7 +23,7 @@ struct sockaddr_in server_addr, server_addr_agent;
 struct hostent *server;
 
 #define BUFFERLEN 4096
-byte local_buffer[BUFFERLEN];
+byte local_buffer[BUFFERLEN], local_buffer_agent[BUFFERLEN];
 
 
 void send_buffer(byte* buffer, size_t len){
@@ -61,11 +61,38 @@ byte* recv_buffer(size_t* len){
   return reply;
 }
 
+byte* recv_buffer_agent(size_t* len){
+  ssize_t n_read = read(fd_sock_agent, local_buffer_agent, sizeof(size_t));
+  if(n_read != sizeof(size_t)){
+    // Shutdown
+    printf("[TC] Invalid message header\n");
+    trusted_client_exit();
+  }
+  size_t reply_size = *(size_t*)local_buffer_agent;
+  byte* reply = (byte*)malloc(reply_size);
+  if(reply == NULL){
+    // Shutdown
+    printf("[TC] Message too large\n");
+    trusted_client_exit();
+  }
+  n_read = read(fd_sock_agent, reply, reply_size);
+  if(n_read != reply_size){
+    printf("[TC] Bad message size\n");
+    // Shutdown
+    trusted_client_exit();
+  }
+
+  *len = reply_size;
+  return reply;
+}
+
 void do_something() {
   sqlite3 *db = open_database();
-  init_db(db, "127.0.0.1", PORTNUM_AGENT);
+  init_db(db, "127.0.0.1", PORTNUM_AGENT, get_sm_hash_as_string(), get_enclave_boot_hash_as_string());
 
   std::string s = get_all_entries(db);
+
+  /*
   std::stringstream ss(s);
 
   std::string segment;
@@ -75,11 +102,8 @@ void do_something() {
     seglist.push_back(segment);
 
   for (int i = 0; i < seglist.size(); i++)
-    std::cout << "DB entry: " << seglist.at(i) << std::endl;
-
-  //while (std::getline(ss, str, ';')) 
+    std::cout << "DB entry: " << seglist.at(i) << std::endl;*/
       
-
   close_database(db);
 }
 
@@ -117,16 +141,19 @@ int main(int argc, char *argv[])
 
   printf("[TC] Connected to enclave host!\n");
 
-  /************ Agent socket ************/
+  /**************************** Agent socket ********************************/
 
+  // Connect the verifier to the agent socket
   fd_sock_agent = socket(AF_INET, SOCK_STREAM, 0);
   if (fd_sock_agent < 0){
     printf("No socket\n");
     exit(-1);
   }
+
   server_addr_agent.sin_family = AF_INET;
   memcpy(&server_addr_agent.sin_addr.s_addr,server->h_addr,server->h_length);
   server_addr_agent.sin_port = htons(PORTNUM_AGENT);
+
   if (connect(fd_sock_agent, (struct sockaddr *)&server_addr_agent, sizeof(server_addr_agent)) < 0){
     printf("Can't connect\n");
     exit(-1);
@@ -134,8 +161,7 @@ int main(int argc, char *argv[])
 
   printf("[TC] Connected to agent socket!\n");
 
-  /**************************************/
-
+  /****************************************************************************/
 
   /* Establish channel */
   trusted_client_init();
@@ -149,6 +175,16 @@ int main(int argc, char *argv[])
   size_t pubkey_size;
   byte* pubkey = trusted_client_pubkey(&pubkey_size);
   send_buffer(pubkey, pubkey_size);
+
+  /* contact the agent and exchange the certificates */
+  size_t reply_size;
+  local_buffer_agent[0] = '1';
+  local_buffer_agent[1] = '\0';
+
+  send_agent_buffer(local_buffer_agent, 2);
+  byte* cert_bytes = recv_buffer_agent(&reply_size);
+  std::string certificate(reinterpret_cast<char*>(cert_bytes), reply_size);
+  std::cout << "Received certificate: " << certificate << std::endl;
   
   /* Send/recv messages */
   for(;;){

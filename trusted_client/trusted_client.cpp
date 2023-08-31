@@ -1,4 +1,7 @@
 #include <string.h>
+#include <sstream>
+#include <iomanip> // For std::hex
+
 #include "trusted_client.h"
 #include "client.h"
 
@@ -198,4 +201,30 @@ calc_message_t* generate_exit_message(size_t* finalsize){
 
   return message_buffer;
 
+}
+
+/******************* New Functions *********************/
+
+// Function to convert a single unsigned char to a hexadecimal string
+std::string char_to_hex_str(unsigned char c) {
+    std::stringstream ss;
+    ss << std::hex << std::setw(2) << std::setfill('0') << static_cast<int>(c);
+    return ss.str();
+}
+
+std::string get_sm_hash_as_string() {
+  std::stringstream ss;
+  for (int i = 0; i < sm_expected_hash_len; ++i)
+    // Convert each unsigned char to its hexadecimal representation
+    ss << std::hex << std::setw(2) << std::setfill('0') << static_cast<int>(sm_expected_hash[i]);
+  
+  return ss.str();
+}
+
+std::string get_enclave_boot_hash_as_string() {
+  std::stringstream ss;
+  for (int i = 0; i < enclave_expected_hash_len; ++i)
+    ss << std::hex << std::setw(2) << std::setfill('0') << static_cast<int>(enclave_expected_hash[i]);
+  
+  return ss.str();
 }

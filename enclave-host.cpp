@@ -23,6 +23,41 @@
 const char* enc_path = "server_eapp.eapp_riscv";
 const char* runtime_path = "eyrie-rt";
 
+/* Temp: to move from here*/
+const char ca_cert_pem[] = 
+  "-----BEGIN CERTIFICATE-----\r\n"                                       \
+  "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\r\n"  \
+  "QMpPIe8Pig==\r\n"                                                      \
+  "-----END CERTIFICATE-----\r\n";
+unsigned long ca_cert_pem_len = sizeof(ca_cert_pem);
+
 #define PORTNUM_AGENT 8068
 #define PORTNUM 8067
 int fd_clientsock;
@@ -35,6 +70,12 @@ void send_buffer(byte* buffer, size_t len){
   write(fd_clientsock, buffer, len);
 }
 
+void send_buffer_agent(byte* buffer, size_t len, bool is_sending_cert) {
+  if (is_sending_cert)
+    write(fd_clientsock_agent, &ca_cert_pem_len, sizeof(size_t));
+  write(fd_clientsock_agent, buffer, len);
+}
+
 byte* recv_buffer(size_t* len, int fd_sock){
   read(fd_sock, local_buffer, sizeof(size_t));
   size_t reply_size = *(size_t*)local_buffer;
@@ -45,9 +86,9 @@ byte* recv_buffer(size_t* len, int fd_sock){
 }
 
 byte* recv_buffer_agent(size_t* len){
-  byte* reply = (byte*)malloc(32);
-  read(fd_clientsock_agent, reply, 5);
-  *len = 5;
+  byte* reply = (byte*)malloc(BUFFERLEN);
+  read(fd_clientsock_agent, reply, BUFFERLEN);
+  *len = BUFFERLEN;
   return reply;
 }
 
@@ -124,10 +165,16 @@ encl_message_t wait_for_message(){
 
 int wait_for_agent_message() {
   size_t len;
-  void* buffer = recv_buffer(&len, fd_clientsock_agent);
+  char* buffer = (char *)recv_buffer(&len, fd_clientsock_agent);
 
-  if( PRINT_MESSAGE_BUFFERS )
-    printf("[EH] Got a new message for the AGENT: %s\n",(char *)buffer);
+  // Send the certificates
+  if (buffer[0] == '1' && buffer[1] == '\0') {
+    byte* certificate_bytes = reinterpret_cast<byte*>(const_cast<char*>(ca_cert_pem));
+    send_buffer_agent(certificate_bytes, ca_cert_pem_len, true);
+  }
+
+  //if( PRINT_MESSAGE_BUFFERS )
+  //  printf("[EH] Got a new message for the AGENT: %s\n",(char *)buffer);
 
   /* This happens here */
   return 1;
@@ -138,7 +185,7 @@ void send_report(void* buffer, size_t len)
   send_buffer((byte*)buffer, len);
 }
 
-void init_network_agent(){
+void init_network_agent() {
   struct sockaddr_in server_addr, client_addr;
   int fd_sock = socket(AF_INET, SOCK_STREAM, 0);
 
@@ -210,15 +257,9 @@ void worker_request_runtime_attestation(Keystone::Enclave *enclave) {
   }
 }
 
-void run_enclave(Keystone::Enclave *enclave) {
-  uintptr_t retval;
-  std::cout << "Enclave thread spawned..." << std::endl;
-  Keystone::Error rval = enclave->run_with_runtime_attestation_support(&retval);
-}
-
 void run_agent(Keystone::Enclave *enclave) {
   // Accept incoming requests and perform attestation
-  std::cout << "[Agent] Agent thread spawned..." << std::endl;
+  std::cout << "[Agent] Agent initialized" << std::endl;
 
   // .... accept request (TODO)
   for (int i = 0; i < 10; i++)
@@ -226,9 +267,13 @@ void run_agent(Keystone::Enclave *enclave) {
 
   // Spawn a thread for each request
   std::thread worker(worker_request_runtime_attestation, enclave);
-
-
   worker.join();  
+}
+
+void run_enclave(Keystone::Enclave *enclave) {
+  uintptr_t retval;
+  //std::cout << "Enclave thread spawned..." << std::endl;
+  Keystone::Error rval = enclave->run_with_runtime_attestation_support(&retval);
 }
 
 int main(int argc, char** argv)

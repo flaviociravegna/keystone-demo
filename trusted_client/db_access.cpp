@@ -1,5 +1,9 @@
 #include <iostream>
-#include <uuid/uuid.h>
+#include <random>
+//#include <boost/uuid/uuid.hpp>
+//#include <boost/uuid/uuid_generators.hpp>
+//#include <boost/uuid/uuid_io.hpp>
+//#include <uuid.h>
 #include "db_access.h"
 
 /* From the SQLITE documentation: If the path begins with a '/' character, then it is interpreted as an absolute path.
@@ -27,14 +31,57 @@ int append_row_callback(void* data, int argc, char* argv[], char* colNames[]) {
     return 0; // Return 0 to continue processing more rows
 }
 
+// This is temporary: a better solution should be to use an external library
 std::string generateUUID() {
-    uuid_t uuid;
-    uuid_generate(uuid);
+    std::random_device rd;
+    std::mt19937 gen(rd());
+    std::uniform_int_distribution<> dis(0, 15);
+    std::string uuid;
+    const char* hex_chars = "0123456789abcdef";
 
-    char uuidStr[37]; // UUIDs are 36 characters long plus a null-terminator
-    uuid_unparse_lower(uuid, uuidStr); // convert the UUID from binary representation to a string
+    for (int i = 0; i < 36; ++i) {
+        if (i == 8 || i == 13 || i == 18 || i == 23)
+            uuid += '-';
+        else if (i == 14)
+            uuid += '4'; // Version 4 UUID
+        else if (i == 19)
+            uuid += hex_chars[(dis(gen) & 0x3) | 0x8]; // Variant (RFC4122)
+        else
+            uuid += hex_chars[dis(gen)];
+    }
 
-    return std::string(uuidStr);
+    return uuid;
+}
+
+std::string get_by_criteria(sqlite3* db, std::string uuid, std::string column_name) {
+    std::string result;
+    std::string sql = "SELECT " + column_name + " FROM EAPPS WHERE UUID=?";
+    sqlite3_stmt* stmt;
+
+    int rc = sqlite3_prepare_v2(db, sql.c_str(), -1, &stmt, nullptr);
+    if (rc != SQLITE_OK) {
+        std::cerr << "Error preparing SQL statement: " << sqlite3_errmsg(db) << std::endl;
+        return result;
+    }
+
+    // Bind the UUID parameter to the prepared statement
+    rc = sqlite3_bind_text(stmt, 1, uuid.c_str(), -1, SQLITE_STATIC);
+    if (rc != SQLITE_OK) {
+        std::cerr << "Error binding parameter: " << sqlite3_errmsg(db) << std::endl;
+        sqlite3_finalize(stmt);
+        return result;
+    }
+
+    rc = sqlite3_step(stmt);
+    if (rc == SQLITE_ROW) {
+        const unsigned char* value = sqlite3_column_text(stmt, 0);
+        if (value)
+            result = reinterpret_cast<const char*>(value);
+    } else if (rc != SQLITE_DONE)
+        std::cerr << "Error executing SQL statement: " << sqlite3_errmsg(db) << std::endl;
+
+    sqlite3_finalize(stmt);
+    return result;
 }
 
 /***********************************************************************/
@@ -85,15 +132,29 @@ std::string get_all_entries(sqlite3* db) {
     return result;
 }
 
-void init_db(sqlite3* db, std::string agent_ip, int agent_port) {
-    execute_query(db, "CREATE TABLE IF NOT EXISTS EAPPS (UUID TEXT PRIMARY KEY, AgentIP TEXT NOT NULL, AgentPort INTEGER NOT NULL);");
-
+void init_db(sqlite3* db, std::string agent_ip, int agent_port, std::string sm_hash, std::string enclave_hash_boot) {
+    std::string sql_create = "CREATE TABLE IF NOT EXISTS EAPPS (UUID TEXT PRIMARY KEY, AgentIP TEXT NOT NULL, AgentPort INTEGER NOT NULL, HashSM TEXT NOT NULL, HashEappBoot TEXT NOT NULL, HashEappRt TEXT);";
+    execute_query(db, sql_create.c_str());
+    
     for (int i = 0; i < 10; i++) {
-        EappRegistration registration(generateUUID(), agent_ip, agent_port);
-        execute_query(db, "INSERT INTO EAPPS (UUID, AgentIP, AgentPort) VALUES ("
-            + registration.UUID + ", " 
-            + registration.AgentIP + ", " 
-            + registration.AgentPort + ")"
-        );
+        EappRegistration registration(generateUUID(), agent_ip, agent_port, sm_hash, enclave_hash_boot, "");
+        std::string sql_insert = "INSERT INTO EAPPS (UUID, AgentIP, AgentPort, HashSM, HashEappBoot, HashEappRt) VALUES ('" +
+                  registration.UUID + "', '" +
+                  registration.AgentIP + "', " +
+                  std::to_string(registration.AgentPort) + ", '" +
+                  registration.HashSM + "', '" +
+                  registration.HashEappBoot + "', '" +
+                  registration.HashEappRt + "');";
+        execute_query(db, sql_insert.c_str());
     }
+
+    std::cout << "Entries inserted succesfully in the database" << std::endl;
+}
+
+std::string get_eapp_boot_hash(sqlite3* db, std::string uuid) {
+    return get_by_criteria(db, uuid, "HashEappBoot");
+}
+
+std::string get_eapp_rt_hash(sqlite3* db, std::string uuid) {
+    return get_by_criteria(db, uuid, "HashEappRt");
 }

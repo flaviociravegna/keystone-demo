@@ -28,4 +28,7 @@ calc_message_t* generate_exit_message(size_t* finalsize);
 byte* trusted_client_box(byte* msg, size_t size, size_t* finalsize);
 void trusted_client_unbox(unsigned char* buffer, size_t len);
 
+std::string get_sm_hash_as_string();
+std::string get_enclave_boot_hash_as_string();
+
 #endif /* _TRUSTED_CLIENT_H_ */

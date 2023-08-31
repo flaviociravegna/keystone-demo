@@ -35,34 +35,31 @@ set(KEYSTONE_LIB_HOST ${KEYSTONE_SDK_DIR}/lib/libkeystone-host.a)
 set(KEYSTONE_LIB_EDGE ${KEYSTONE_SDK_DIR}/lib/libkeystone-edge.a)
 set(KEYSTONE_LIB_VERIFIER ${KEYSTONE_SDK_DIR}/lib/libkeystone-verifier.a)
 set(KEYSTONE_LIB_EAPP ${KEYSTONE_SDK_DIR}/lib/libkeystone-eapp.a)
-set(UUID_LIBRARY_VAR uuid)
+#set(UUID_LIBRARY_VAR uuid)
 
 # find program "makeself"
 find_program(MAKESELF makeself)
 # multi-threading support
 find_package(Threads REQUIRED)
 #libuuid
-find_path(UUID_INCLUDE_DIR uuid/uuid.h
-  /usr/local/include/
-  /usr/include/
-)
-find_library(UUID_LIBRARY
-  NAMES ${UUID_LIBRARY_VAR}
-  PATHS /lib /usr/lib /usr/local/lib
-)
+#find_path(UUID_INCLUDE_DIR uuid/uuid.h
+#  /usr/local/include
+#  /usr/include
+#)
+#find_library(UUID_LIBRARY
+#  NAMES ${UUID_LIBRARY_VAR}
+#  PATHS /lib /usr/lib /usr/local/lib
+#)
 
 # Check if libuuid was found
-if (NOT UUID_INCLUDE_DIR OR NOT EXISTS ${UUID_LIBRARY})
-  message(FATAL_ERROR "libuuid not found")
-else ()
-  message(STATUS "Found UUID: ${UUID_LIBRARY}")
-  message(STATUS "Found UUID include directory: ${UUID_INCLUDE_DIR}")
-endif()
+#if (NOT UUID_INCLUDE_DIR OR NOT EXISTS ${UUID_LIBRARY})
+#  message(FATAL_ERROR "libuuid not found")
+#else ()
+#  message(STATUS "Found UUID library: ${UUID_LIBRARY}")
+#  message(STATUS "Found UUID include directory: ${UUID_INCLUDE_DIR}")
+#endif()
 
-mark_as_advanced(
-  UUID_LIBRARY
-  UUID_INCLUDE_DIR
-)
+#mark_as_advanced(UUID_LIBRARY UUID_INCLUDE_DIR)
 
 # Your project setup, including include directories and target_link_libraries
 # export include directory
@@ -72,7 +69,8 @@ include_directories(include
   ${KEYSTONE_SDK_DIR}/include/host
   ${KEYSTONE_SDK_DIR}/include/edge
   ${KEYSTONE_SDK_DIR}/include/verifier
-  ${UUID_INCLUDE_DIR}
+#  ${UUID_INCLUDE_DIR}
+#  ${UUID_INCLUDE_DIR}/uuid
 )
 
 # trusted client
@@ -90,7 +88,7 @@ target_link_libraries(trusted_client.riscv
   ${LIBSODIUM_CLIENT_DIR}/.libs/libsodium.a
   ${CMAKE_DL_LIBS}
   Threads::Threads
-  ${UUID_LIBRARY}
+#  ${UUID_LIBRARY}
 )
 
 # enclave

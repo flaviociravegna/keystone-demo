@@ -32,8 +32,8 @@ extracthash () {
 
     expect "# " { send "ifdown lo && ifup lo\r" }
     expect "# " { send "cd keystone-demo\r" }
-    expect "# " { send "chmod +x enclave-host.riscv trusted_client.riscv\r" }
-    expect "# " { send "./enclave-host.riscv &\r" }
+    expect "# " { send "chmod +x demo-server.riscv trusted_client.riscv\r" }
+    expect "# " { send "./demo-server.riscv &\r" }
     expect "# " { send "echo q | ./trusted_client.riscv 127.0.0.1 --ingnore-valid\r" }
 
 
