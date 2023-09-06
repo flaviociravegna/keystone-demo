@@ -32,7 +32,7 @@ bool verify_cert_chain(
         int man_cert_len
     ) {
   uint32_t flags = 0;
-  custom_x509_crt trusted_certs;
+  custom_x509_crt trusted_certs, cert_chain;
 
   custom_x509_crt_init(&trusted_certs);
   int ret = custom_x509_crt_parse_der(&trusted_certs, ref_cert_man, ref_cert_man_len);
@@ -42,46 +42,20 @@ bool verify_cert_chain(
   print_custom_x509_cert("Trusted Certificate", trusted_certs);
   #endif
 
-  // cert_chain.hash.p[15] = 0x56; // Used to break verification
+  custom_x509_crt_init(&cert_chain);
 
-  //  verify chain of certificates
-  custom_x509_crt cert_sm, cert_root, cert_man;
-  custom_x509_crt_init(&cert_sm);
-  custom_x509_crt_init(&cert_root);
-  custom_x509_crt_init(&cert_man);
-    /*
-    printf("[Ver] SM cert (len: %d): ", sm_cert_len);
-    for (int i = 0; i < sm_cert_len; i++) {
-        printf("%02X,", sm_cert_par[i]);
-    }
-    printf("\n");
-
-    printf("[Ver] MAN cert (len: %d): ", man_cert_len);
-    for (int i = 0; i < man_cert_len; i++) {
-        printf("%02X,", man_cert_par[i]);
-    }
-    printf("\n");
-    */
-
-  printf("Certificates initialized correctly\n");
-
-  ret = custom_x509_crt_parse_der(&cert_man, man_cert_par, man_cert_len);
-  if (ret != 0) printf("Error parsing MAN certificate\n");
-  else printf("MAN certificate parsed correctly!\n");
-
-  ret = custom_x509_crt_parse_der(&cert_root, root_cert_par, root_cert_len);
-  if (ret != 0) printf("Error parsing ROOT certificate\n");
-  else printf("ROOT certificate parsed correctly!\n");
-
-  ret = custom_x509_crt_parse_der(&cert_sm, sm_cert_par, sm_cert_len);
+  // Parsing leaf certificate
+  ret = custom_x509_crt_parse_der(&cert_chain, sm_cert_par, sm_cert_len);
   if (ret != 0) printf("Error parsing SM certificate. Error code: %d\n", ret);
-  else printf("SM certificate parsed correctly!\n");
 
-  cert_man.next = &cert_root;
-  cert_root.next = &cert_sm;
+  // Parsing intermediate certificate
+  ret = custom_x509_crt_parse_der(&cert_chain, root_cert_par, root_cert_len);
+  if (ret != 0) printf("Error parsing ROOT certificate\n");
 
-  ret = custom_x509_crt_verify(&cert_man, &trusted_certs, NULL, NULL, &flags, NULL, NULL);
-  printf("Verifing Chain of Certificates - ret: %u, flags = %u\n", ret, flags);
+  printf("Verifing Chain of Certificates... ");
+  ret = custom_x509_crt_verify(&cert_chain, &trusted_certs, NULL, NULL, &flags, NULL, NULL);
+  if (ret == 0) printf("Success!");
+  else printf("Verification failed! Error code: %d, flags: %d", ret, flags);
 
   return (ret == 0) ? true : false;
 }
