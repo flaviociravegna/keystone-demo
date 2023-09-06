@@ -1,0 +1,40 @@
+# set paths for mbedtls
+set(MBEDTLS_LIB_CRYPTO_HOST ${MBEDTLS_DIR_HOST}/build/library/libmbedcrypto.a)
+set(MBEDTLS_LIB_TLS_HOST ${MBEDTLS_DIR_HOST}/build/library/libmbedtls.a)
+set(MBEDTLS_LIB_X509_HOST ${MBEDTLS_DIR_HOST}/build/library/libmbedx509.a)
+
+set(my_mbedtls_files ../my_mbedtls_stdlib/custom_asn1.c ../my_mbedtls_stdlib/custom_ed25519.c ../my_mbedtls_stdlib/custom_pk.c ../my_mbedtls_stdlib/custom_md.c ../my_mbedtls_stdlib/custom_utils.c
+../my_mbedtls_stdlib/custom_attester.c ../my_mbedtls_stdlib/custom_string.c ../my_mbedtls_stdlib/custom_x509.c ../my_mbedtls_stdlib/custom_x509_crt.c ../my_mbedtls_stdlib/custom_x509_csr.c)
+set(my_mbedtls_dir ../my_mbedtls_stdlib/)
+set(sha3_dir ../my_mbedtls_stdlib/sha3/)
+set(ed25519_files ../my_mbedtls_stdlib/ed25519/ed25519.h ../my_mbedtls_stdlib/ed25519/fe.h ../my_mbedtls_stdlib/ed25519/fe.c ../my_mbedtls_stdlib/ed25519/fixedint.h
+../my_mbedtls_stdlib/ed25519/ge.h ../my_mbedtls_stdlib/ed25519/ge.c ../my_mbedtls_stdlib/ed25519/keypair.c ../my_mbedtls_stdlib/ed25519/precomp_data.h
+../my_mbedtls_stdlib/ed25519/sc.h ../my_mbedtls_stdlib/ed25519/sc.c ../my_mbedtls_stdlib/ed25519/sign.c ../my_mbedtls_stdlib/ed25519/verify.c)
+
+# trusted client
+add_executable(trusted_client.riscv
+  client.cpp
+  trusted_client.cpp
+  db_access.cpp
+  ../include/enclave_expected_hash.h
+  ../include/sm_expected_hash.h
+  sqlite-amalgamation-3420000/sqlite3.c
+  cert_verifier.c
+  ${my_mbedtls_files} ${sha3_dir}/sha3.h ${sha3_dir}/sha3.c ${ed25519_files}
+)
+
+target_link_libraries(trusted_client.riscv
+  ${KEYSTONE_LIB_VERIFIER}
+  ${LIBSODIUM_CLIENT_DIR}/.libs/libsodium.a
+  ${CMAKE_DL_LIBS}
+  ${MBEDTLS_LIB_TLS_HOST} ${MBEDTLS_LIB_X509_HOST} ${MBEDTLS_LIB_CRYPTO_HOST}
+  Threads::Threads
+)
+
+target_include_directories(trusted_client.riscv
+  PRIVATE ${MBEDTLS_DIR_HOST}/include
+  PRIVATE ${my_mbedtls_dir}/include
+  PRIVATE ${my_mbedtls_dir}
+  PRIVATE ${sha3_dir}  
+  PRIVATE .
+)

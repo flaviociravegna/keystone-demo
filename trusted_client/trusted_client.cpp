@@ -9,6 +9,7 @@
 #include "enclave_expected_hash.h"
 #include "sm_expected_hash.h"
 
+
 unsigned char client_pk[crypto_kx_PUBLICKEYBYTES];
 unsigned char client_sk[crypto_kx_SECRETKEYBYTES];
 unsigned char server_pk[crypto_kx_PUBLICKEYBYTES];
@@ -207,9 +208,9 @@ calc_message_t* generate_exit_message(size_t* finalsize){
 
 // Function to convert a single unsigned char to a hexadecimal string
 std::string char_to_hex_str(unsigned char c) {
-    std::stringstream ss;
-    ss << std::hex << std::setw(2) << std::setfill('0') << static_cast<int>(c);
-    return ss.str();
+  std::stringstream ss;
+  ss << std::hex << std::setw(2) << std::setfill('0') << static_cast<int>(c);
+  return ss.str();
 }
 
 std::string get_sm_hash_as_string() {

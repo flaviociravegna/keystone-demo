@@ -10,7 +10,9 @@
 #include "trusted_client.h"
 #include "client.h"
 #include "db_access.h"
-
+extern "C" {
+    #include "cert_verifier.h"
+}
 
 #include <vector>
 #include <sstream>
@@ -176,15 +178,21 @@ int main(int argc, char *argv[])
   byte* pubkey = trusted_client_pubkey(&pubkey_size);
   send_buffer(pubkey, pubkey_size);
 
-  /* contact the agent and exchange the certificates */
-  size_t reply_size;
-  local_buffer_agent[0] = '1';
-  local_buffer_agent[1] = '\0';
-
+  /*
   send_agent_buffer(local_buffer_agent, 2);
   byte* cert_bytes = recv_buffer_agent(&reply_size);
   std::string certificate(reinterpret_cast<char*>(cert_bytes), reply_size);
   std::cout << "Received certificate: " << certificate << std::endl;
+  */
+
+  /* Request and verify the certificate chain */
+  std::cout << "[TC] Contacting agent for certs..." << std::endl;
+  size_t reply_size;
+  local_buffer_agent[0] = '1';
+  local_buffer_agent[1] = '\0';
+  send_agent_buffer(local_buffer_agent, 2);
+  byte* cert_bytes = recv_buffer_agent(&reply_size);
+  //verify_cert_chain();
   
   /* Send/recv messages */
   for(;;){

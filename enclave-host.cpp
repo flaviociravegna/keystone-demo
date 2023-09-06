@@ -163,20 +163,28 @@ encl_message_t wait_for_message(){
   return message;
 }
 
-int wait_for_agent_message() {
+int wait_for_agent_message(Keystone::Enclave *enclave) {
   size_t len;
+  std::cout << "[Agent] Waiting for a message..." << std::endl;
   char* buffer = (char *)recv_buffer(&len, fd_clientsock_agent);
 
   // Send the certificates
   if (buffer[0] == '1' && buffer[1] == '\0') {
+    std::cout << "[Agent] Requesting certificates..." << std::endl;
+    /*
     byte* certificate_bytes = reinterpret_cast<byte*>(const_cast<char*>(ca_cert_pem));
-    send_buffer_agent(certificate_bytes, ca_cert_pem_len, true);
+    send_buffer_agent(certificate_bytes, ca_cert_pem_len, true);*/
+    unsigned char cert_sm[512];
+    unsigned char cert_root[512];
+    unsigned char cert_man[512];
+    int lengths[3];
+    enclave->requestCertChain(cert_sm, cert_root, cert_man, lengths);
+
+    printf("[Agent] Received lengths: l1: %d, l2: %d, l3: %d\n", lengths[0], lengths[1], lengths[2]);
+  } else {
+    std::cout << "[Agent] Other operations..." << std::endl;
   }
 
-  //if( PRINT_MESSAGE_BUFFERS )
-  //  printf("[EH] Got a new message for the AGENT: %s\n",(char *)buffer);
-
-  /* This happens here */
   return 1;
 }
 
@@ -245,6 +253,8 @@ void init_network_wait(){
 
 void worker_request_runtime_attestation(Keystone::Enclave *enclave) {
   for (int i = 0; i < 3; i++) {
+    std::cout << "ok " << std::endl;
+    /*
     std::cout << "[Agent] Agent waiting for some seconds..." << std::endl;
     std::this_thread::sleep_for(std::chrono::seconds(3));
 
@@ -254,6 +264,7 @@ void worker_request_runtime_attestation(Keystone::Enclave *enclave) {
     // print the report computed
     std::cout << "[Agent] Computed hash: " << std::endl;
     print_hex_data_2((enclave->getRuntimeAttestationReport())->enclave.hash, sizeof((enclave->getRuntimeAttestationReport())->enclave.hash));
+    */
   }
 }
 
@@ -261,9 +272,9 @@ void run_agent(Keystone::Enclave *enclave) {
   // Accept incoming requests and perform attestation
   std::cout << "[Agent] Agent initialized" << std::endl;
 
-  // .... accept request (TODO)
+  // .... accept requests
   for (int i = 0; i < 10; i++)
-    wait_for_agent_message();
+    wait_for_agent_message(enclave);
 
   // Spawn a thread for each request
   std::thread worker(worker_request_runtime_attestation, enclave);
