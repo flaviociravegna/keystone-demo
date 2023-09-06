@@ -88,6 +88,23 @@ byte* recv_buffer_agent(size_t* len){
   return reply;
 }
 
+void recv_cert_chain_on_buffer_agent(
+  unsigned char *sm_cert, unsigned char *root_cert, unsigned char *man_cert,
+  size_t *sm_cert_len, size_t *root_cert_len, size_t *man_cert_len
+) {
+  // Read the 3 lengths
+  read(fd_sock_agent, sm_cert_len, sizeof(size_t));
+  read(fd_sock_agent, root_cert_len, sizeof(size_t));
+  read(fd_sock_agent, man_cert_len, sizeof(size_t));
+
+  printf("[Ver] read lengths (sm: %d, root: %d, man: %d)\n", *sm_cert_len, *root_cert_len, *man_cert_len);
+
+  // Read the certificates
+  read(fd_sock_agent, (byte*) sm_cert, *sm_cert_len);
+  read(fd_sock_agent, (byte*) root_cert, *root_cert_len);
+  read(fd_sock_agent, (byte*) man_cert, *man_cert_len);
+}
+
 void do_something() {
   sqlite3 *db = open_database();
   init_db(db, "127.0.0.1", PORTNUM_AGENT, get_sm_hash_as_string(), get_enclave_boot_hash_as_string());
@@ -187,12 +204,17 @@ int main(int argc, char *argv[])
 
   /* Request and verify the certificate chain */
   std::cout << "[TC] Contacting agent for certs..." << std::endl;
-  size_t reply_size;
   local_buffer_agent[0] = '1';
   local_buffer_agent[1] = '\0';
   send_agent_buffer(local_buffer_agent, 2);
-  byte* cert_bytes = recv_buffer_agent(&reply_size);
-  //verify_cert_chain();
+
+  unsigned char sm_cert[512];
+  unsigned char root_cert[512];
+  unsigned char man_cert[512];
+  size_t sm_cert_len, root_cert_len, man_cert_len;
+
+  recv_cert_chain_on_buffer_agent(sm_cert, root_cert, man_cert, &sm_cert_len, &root_cert_len, &man_cert_len);
+  verify_cert_chain(sm_cert, root_cert, man_cert, sm_cert_len, root_cert_len, man_cert_len);
   
   /* Send/recv messages */
   for(;;){

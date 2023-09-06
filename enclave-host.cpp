@@ -76,6 +76,25 @@ void send_buffer_agent(byte* buffer, size_t len, bool is_sending_cert) {
   write(fd_clientsock_agent, buffer, len);
 }
 
+// Format: <len_cert_sm><len_cert_root><len_cert_man><cert_sm><cert_root><len_cert_man>
+void send_cert_chain_on_buffer_agent(
+        unsigned char *sm_cert_par,
+        unsigned char *root_cert_par,
+        unsigned char *man_cert_par,
+        size_t sm_cert_len,
+        size_t root_cert_len,
+        size_t man_cert_len) {
+  // Writing the 3 lengths
+  write(fd_clientsock_agent, &sm_cert_len, sizeof(size_t));
+  write(fd_clientsock_agent, &root_cert_len, sizeof(size_t));
+  write(fd_clientsock_agent, &man_cert_len, sizeof(size_t));
+
+  // Writing the 3 certificates
+  write(fd_clientsock_agent, (byte *) sm_cert_par, sm_cert_len);
+  write(fd_clientsock_agent, (byte *) root_cert_par, root_cert_len);
+  write(fd_clientsock_agent, (byte *) man_cert_par, man_cert_len);
+}
+
 byte* recv_buffer(size_t* len, int fd_sock){
   read(fd_sock, local_buffer, sizeof(size_t));
   size_t reply_size = *(size_t*)local_buffer;
@@ -181,6 +200,8 @@ int wait_for_agent_message(Keystone::Enclave *enclave) {
     enclave->requestCertChain(cert_sm, cert_root, cert_man, lengths);
 
     printf("[Agent] Received lengths: l1: %d, l2: %d, l3: %d\n", lengths[0], lengths[1], lengths[2]);
+    send_cert_chain_on_buffer_agent(cert_sm, cert_root, cert_man, lengths[0], lengths[1], lengths[2]);
+
   } else {
     std::cout << "[Agent] Other operations..." << std::endl;
   }

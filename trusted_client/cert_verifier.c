@@ -23,7 +23,14 @@ static const unsigned char ref_cert_man[] = {
 
 static const int ref_cert_man_len = 254;
 
-bool verify_cert_chain() {
+bool verify_cert_chain(
+        unsigned char *sm_cert_par,
+        unsigned char *root_cert_par,
+        unsigned char *man_cert_par,
+        int sm_cert_len,
+        int root_cert_len,
+        int man_cert_len
+    ) {
   uint32_t flags = 0;
   custom_x509_crt trusted_certs;
 
@@ -38,11 +45,43 @@ bool verify_cert_chain() {
   // cert_chain.hash.p[15] = 0x56; // Used to break verification
 
   //  verify chain of certificates
-  //ret = custom_x509_crt_verify(&(csr.cert_chain), &trusted_certs, NULL, NULL, &flags, NULL, NULL);
-  ret = custom_x509_crt_verify(&trusted_certs, &trusted_certs, NULL, NULL, &flags, NULL, NULL);
-  printf("Verifing Chain of Certificates - ret: %u, flags = %u\n", ret, flags);
-  //mbedtls_printf("\n");
+  custom_x509_crt cert_sm, cert_root, cert_man;
+  custom_x509_crt_init(&cert_sm);
+  custom_x509_crt_init(&cert_root);
+  custom_x509_crt_init(&cert_man);
+    /*
+    printf("[Ver] SM cert (len: %d): ", sm_cert_len);
+    for (int i = 0; i < sm_cert_len; i++) {
+        printf("%02X,", sm_cert_par[i]);
+    }
+    printf("\n");
 
-  custom_x509_crt_free(&trusted_certs);
+    printf("[Ver] MAN cert (len: %d): ", man_cert_len);
+    for (int i = 0; i < man_cert_len; i++) {
+        printf("%02X,", man_cert_par[i]);
+    }
+    printf("\n");
+    */
+
+  printf("Certificates initialized correctly\n");
+
+  ret = custom_x509_crt_parse_der(&cert_man, man_cert_par, man_cert_len);
+  if (ret != 0) printf("Error parsing MAN certificate\n");
+  else printf("MAN certificate parsed correctly!\n");
+
+  ret = custom_x509_crt_parse_der(&cert_root, root_cert_par, root_cert_len);
+  if (ret != 0) printf("Error parsing ROOT certificate\n");
+  else printf("ROOT certificate parsed correctly!\n");
+
+  ret = custom_x509_crt_parse_der(&cert_sm, sm_cert_par, sm_cert_len);
+  if (ret != 0) printf("Error parsing SM certificate. Error code: %d\n", ret);
+  else printf("SM certificate parsed correctly!\n");
+
+  cert_man.next = &cert_root;
+  cert_root.next = &cert_sm;
+
+  ret = custom_x509_crt_verify(&cert_man, &trusted_certs, NULL, NULL, &flags, NULL, NULL);
+  printf("Verifing Chain of Certificates - ret: %u, flags = %u\n", ret, flags);
+
   return (ret == 0) ? true : false;
 }
