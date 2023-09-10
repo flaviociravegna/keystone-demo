@@ -23,5 +23,9 @@ void close_database(sqlite3* db);
 bool execute_query(sqlite3* db, const char* query);
 
 std::string get_all_entries(sqlite3* db);
+std::string get_lak_of_eapp(sqlite3 *db, std::string uuid);
 std::string get_eapp_boot_hash(sqlite3* db, std::string uuid);
 std::string get_eapp_rt_hash(sqlite3* db, std::string uuid);
+std::string get_test_uuid(sqlite3 *db);
+
+bool save_trusted_lak_for_eapp(sqlite3 *db, std::string uuid, std::string lak);

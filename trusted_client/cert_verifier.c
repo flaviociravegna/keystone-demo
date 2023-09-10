@@ -27,16 +27,17 @@ bool verify_cert_chain(
         unsigned char *sm_cert_par,
         unsigned char *root_cert_par,
         unsigned char *man_cert_par,
+        unsigned char *lak_cert_par,
         int sm_cert_len,
         int root_cert_len,
-        int man_cert_len
+        int man_cert_len,
+        int lak_cert_len
     ) {
   uint32_t flags = 0;
   custom_x509_crt trusted_certs, cert_chain;
 
   custom_x509_crt_init(&trusted_certs);
   int ret = custom_x509_crt_parse_der(&trusted_certs, ref_cert_man, ref_cert_man_len);
-  printf("Parsing Trusted Certificate - ret: %d\n", ret);
 
   #if PRINT_STRUCTS
   print_custom_x509_cert("Trusted Certificate", trusted_certs);
@@ -45,17 +46,43 @@ bool verify_cert_chain(
   custom_x509_crt_init(&cert_chain);
 
   // Parsing leaf certificate
+  ret = custom_x509_crt_parse_der(&cert_chain, lak_cert_par, lak_cert_len);
+  if (ret != 0) printf("[VER] Error parsing LAK certificate\n");
+
+  // Parsing SM certificate
   ret = custom_x509_crt_parse_der(&cert_chain, sm_cert_par, sm_cert_len);
-  if (ret != 0) printf("Error parsing SM certificate. Error code: %d\n", ret);
+  if (ret != 0) printf("[VER] Error parsing SM certificate. Error code: %d\n", ret);
 
   // Parsing intermediate certificate
   ret = custom_x509_crt_parse_der(&cert_chain, root_cert_par, root_cert_len);
-  if (ret != 0) printf("Error parsing ROOT certificate\n");
+  if (ret != 0) printf("[VER] Error parsing ROOT certificate\n");
 
-  printf("Verifing Chain of Certificates... ");
+  printf("[VER] Verifing Chain of Certificates... ");
   ret = custom_x509_crt_verify(&cert_chain, &trusted_certs, NULL, NULL, &flags, NULL, NULL);
-  if (ret == 0) printf("Success!");
-  else printf("Verification failed! Error code: %d, flags: %d", ret, flags);
+  if (ret == 0) printf("Success!\n");
+  else printf("[VER] Verification failed! Error code: %d, flags: %d\n", ret, flags);
 
   return (ret == 0) ? true : false;
+}
+
+bool extract_lak_pub_from_x509_crt(unsigned char *lak_cert_par, int lak_cert_len, unsigned char *lak_pub) {
+  custom_x509_crt lak_cert;
+  custom_x509_crt_init(&lak_cert);
+
+  int ret = custom_x509_crt_parse_der(&lak_cert, lak_cert_par, lak_cert_len);
+  if (ret != 0) {
+    printf("[VER] Error parsing LAK certificate\n");
+    return false;
+  }
+
+  custom_pk_context pk = lak_cert.pk;
+  unsigned char *end_buf = lak_pub + LAK_PUB_LEN;
+  ret = custom_pk_write_pubkey(&end_buf, lak_pub, &pk);
+  if (ret < 0) {
+      printf("Public key writing failed with error code %d\n", ret);
+      return false;
+  }
+
+  custom_pk_free(&pk);
+  return true;
 }

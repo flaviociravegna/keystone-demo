@@ -29,3 +29,5 @@ cp demo-server.ke demo-server.riscv ./trusted_client/trusted_client.riscv server
 cd ../../keystone/build 
 make image
 
+# TODO: COPY EXPECTED HASH INTO REFERENCE VALUE (BOTH SM AND ENCLAVE)
+

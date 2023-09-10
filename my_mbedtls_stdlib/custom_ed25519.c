@@ -80,7 +80,7 @@ int pk_write_ed25519_pubkey(unsigned char **p, unsigned char *start, custom_ed25
     /*
     printf("Chiave pubblica\n");
     for(int i =0; i <32; i ++){
-        printf("%02x",ed25519->pub_key[i]);
+        printf("%02x",ed25519.pub_key[i]);
     }
     */
 

@@ -26,7 +26,7 @@ void trusted_client_exit(){
   }
   else{
     double_fault = 1;
-    printf("[TC] Exiting. Attempting clean remote shutdown.\n");
+    printf("[VER] Exiting. Attempting clean remote shutdown.\n");
     send_exit_message();
     exit(0);
   }
@@ -35,11 +35,11 @@ void trusted_client_exit(){
 void trusted_client_init(){
 
   if( sodium_init() != 0){
-    printf("[TC] Libsodium init failure\n");
+    printf("[VER] Libsodium init failure\n");
     trusted_client_exit();
   }
   if( crypto_kx_keypair(client_pk,client_sk) != 0){
-    printf("[TC] Libsodium keypair gen failure\n");
+    printf("[VER] Libsodium keypair gen failure\n");
     trusted_client_exit();
   }
 
@@ -61,13 +61,13 @@ void trusted_client_get_report(void* buffer, int ignore_valid){
   		    sm_expected_hash,
   		    _sanctum_dev_public_key))
   {
-    printf("[TC] Attestation signature and enclave hash are valid\n");
+    printf("[VER] Attestation signature and enclave hash are valid\n");
   }
   else
   {
-    printf("[TC] Attestation report is NOT valid\n");
+    printf("[VER] Attestation report is NOT valid\n");
     if( ignore_valid ){
-      printf("[TC] Ignore Validation was set, CONTINUING WITH INVALID REPORT\n");
+      printf("[VER] Ignore Validation was set, CONTINUING WITH INVALID REPORT\n");
     }
     else{
       trusted_client_exit();
@@ -75,18 +75,18 @@ void trusted_client_get_report(void* buffer, int ignore_valid){
   }
 
   if(report.getDataSize() !=  crypto_kx_PUBLICKEYBYTES){
-    printf("[TC] Bad report data sec size\n");
+    printf("[VER] Bad report data sec size\n");
     trusted_client_exit();
   }
 
   memcpy(server_pk, report.getDataSection(), crypto_kx_PUBLICKEYBYTES);
 
   if(crypto_kx_client_session_keys(rx, tx, client_pk, client_sk, server_pk) != 0) {
-    printf("[TC] Bad session keygen\n");
+    printf("[VER] Bad session keygen\n");
     trusted_client_exit();
   }
 
-  printf("[TC] Session keys established\n");
+  printf("[VER] Session keys established\n");
   channel_ready = 1;
 }
 
@@ -98,7 +98,7 @@ byte* trusted_client_box(byte* msg, size_t size, size_t* finalsize){
   *finalsize = size_padded + crypto_secretbox_MACBYTES + crypto_secretbox_NONCEBYTES;
   byte* buffer = (byte*)malloc(*finalsize);
   if(buffer == NULL){
-    printf("[TC] NOMEM for msg\n");
+    printf("[VER] NOMEM for msg\n");
     trusted_client_exit();
   }
 
@@ -106,7 +106,7 @@ byte* trusted_client_box(byte* msg, size_t size, size_t* finalsize){
 
   size_t buf_padded_len;
   if (sodium_pad(&buf_padded_len, buffer, size, MSG_BLOCKSIZE, size_padded) != 0) {
-    printf("[TC] Unable to pad message, exiting\n");
+    printf("[VER] Unable to pad message, exiting\n");
     trusted_client_exit();
   }
 
@@ -114,7 +114,7 @@ byte* trusted_client_box(byte* msg, size_t size, size_t* finalsize){
   randombytes_buf(nonceptr, crypto_secretbox_NONCEBYTES);
 
   if(crypto_secretbox_easy(buffer, buffer, buf_padded_len, nonceptr, tx) != 0){
-    printf("[TC] secretbox failed\n");
+    printf("[VER] secretbox failed\n");
     trusted_client_exit();
   }
 
@@ -126,14 +126,14 @@ void trusted_client_unbox(unsigned char* buffer, size_t len){
   size_t clen = len - crypto_secretbox_NONCEBYTES;
   unsigned char* nonceptr = &(buffer[clen]);
   if (crypto_secretbox_open_easy(buffer, buffer, clen, nonceptr, rx) != 0){
-    printf("[TC] unbox failed\n");
+    printf("[VER] unbox failed\n");
     trusted_client_exit();
   }
 
   size_t ptlen = len - crypto_secretbox_NONCEBYTES - crypto_secretbox_MACBYTES;
   size_t unpad_len;
   if( sodium_unpad(&unpad_len, buffer, ptlen, MSG_BLOCKSIZE) != 0){
-    printf("[TC] Invalid message padding, ignoring\n");
+    printf("[VER] Invalid message padding, ignoring\n");
     trusted_client_exit();
   }
 
@@ -147,7 +147,7 @@ int trusted_client_read_reply(unsigned char* data, size_t len){
 
   int* replyval = (int*)data;
 
-  printf("[TC] Enclave said string was %i words long\n",*replyval);
+  printf("[VER] Enclave said string was %i words long\n",*replyval);
 
 }
 

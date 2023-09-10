@@ -37,6 +37,12 @@ int  checkTCIValue(const custom_x509_name *id, const custom_x509_buf *tci) {
         #endif
         return checkWithRefMeasure(tci_value, tci_len, sm_reference_value, sm_reference_value_len);
     }
+    if(id_len == 7 && custom_strncmp(id_name, "Enclave", 7) == 0){
+        #if CUSTOM_DEBUG_PRINTS
+        printf("Cert is: Enclave\n");
+        #endif
+        return checkEnclaveTCI(tci_value, tci_len);
+    }
     return -1;
 }
 
