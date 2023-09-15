@@ -7,6 +7,8 @@
 #include <netinet/in.h>
 #include <netdb.h> 
 #include <unistd.h>
+#include <random>
+
 #include "trusted_client.h"
 #include "client.h"
 #include "db_access.h"
@@ -20,13 +22,13 @@ extern "C" {
 #include <thread>
 #include <chrono>
 
+#define NONCE_LEN 32
 #define PORTNUM_AGENT 8068
 #define PORTNUM 8067
 sqlite3 *db;
 int fd_sock, fd_sock_agent;
 struct sockaddr_in server_addr, server_addr_agent;
 struct hostent *server;
-bool is_key = false;
 
 #define BUFFERLEN 4096
 byte local_buffer[BUFFERLEN], local_buffer_agent[BUFFERLEN];
@@ -36,28 +38,27 @@ byte local_buffer[BUFFERLEN], local_buffer_agent[BUFFERLEN];
 /****************************************************************/
 
 void send_agent_buffer(byte* buffer, size_t len){
-  write(fd_sock_agent, &len, sizeof(size_t));
+  //write(fd_sock_agent, &len, sizeof(size_t));
   write(fd_sock_agent, buffer, len);  
 }
 
 byte* recv_buffer_agent(size_t* len){
   ssize_t n_read = read(fd_sock_agent, local_buffer_agent, sizeof(size_t));
   if(n_read != sizeof(size_t)){
-    // Shutdown
     printf("[VER] Invalid message header\n");
     trusted_client_exit();
   }
+
   size_t reply_size = *(size_t*)local_buffer_agent;
   byte* reply = (byte*)malloc(reply_size);
-  if(reply == NULL){
-    // Shutdown
+  if(reply == NULL) {
     printf("[VER] Message too large\n");
     trusted_client_exit();
   }
+
   n_read = read(fd_sock_agent, reply, reply_size);
-  if(n_read != reply_size){
+  if(n_read != reply_size) {
     printf("[VER] Bad message size\n");
-    // Shutdown
     trusted_client_exit();
   }
 
@@ -75,8 +76,6 @@ void recv_cert_chain_on_buffer_agent(
   read(fd_sock_agent, man_cert_len, sizeof(size_t));
   read(fd_sock_agent, lak_cert_len, sizeof(size_t));
 
-  //printf("[VER] read lengths (sm: %d, root: %d, man: %d, lak: %d)\n", *sm_cert_len, *root_cert_len, *man_cert_len, *lak_cert_len);
-
   // Read the certificates
   read(fd_sock_agent, (byte*) sm_cert, *sm_cert_len);
   read(fd_sock_agent, (byte*) root_cert, *root_cert_len);
@@ -84,17 +83,7 @@ void recv_cert_chain_on_buffer_agent(
   read(fd_sock_agent, (byte*) lak_cert, *lak_cert_len);
 }
 
-void do_something() {
-  db = open_database();
-  init_db(db, "127.0.0.1", PORTNUM_AGENT, get_sm_hash_as_string(), get_enclave_boot_hash_as_string());
-
-  std::string s = get_all_entries(db);
-  //close_database(db);
-}
-
 void connect_to_agent_socket() {
-  std::cout << "[VER] Connecting to the agent...\n" << std::endl;
-
   // Connect the verifier to the agent socket
   fd_sock_agent = socket(AF_INET, SOCK_STREAM, 0);
   if (fd_sock_agent < 0){
@@ -112,6 +101,68 @@ void connect_to_agent_socket() {
   }
 
   std::cout << "[VER] Connected to the agent socket!\n" << std::endl;
+}
+
+std::array<unsigned char, NONCE_LEN> generate_nonce() {
+    std::random_device rd;
+    std::mt19937 gen(rd());
+    std::uniform_int_distribution<> dis(0, 255);
+
+    std::array<unsigned char, 32> nonce;
+    for (unsigned char &byte : nonce)
+        byte = static_cast<unsigned char>(dis(gen));
+
+    return nonce;
+}
+
+void perform_runtime_attestation() {
+  std::cout << "[VER] Performing run-time attestation..." << std::endl;
+
+  // Copy the generated nonce after "2\0" 
+  std::array<unsigned char, 32> nonce = generate_nonce();
+  local_buffer_agent[0] = '2';
+  local_buffer_agent[1] = '\0';
+  std::copy(nonce.begin(), nonce.end(), local_buffer_agent + 2);
+  //for (int i = 2; i < 34; i++)  local_buffer_agent[i] = nonce[i - 2];
+
+  std::cout << "Buffer: ";
+  for (int i = 2; i < 34; i++)
+    printf("%02x", local_buffer_agent[i]);
+  std::cout << std::endl;
+
+  // If the LAK is not present, the attestation cannot be performed
+  std::string uuid = get_test_uuid(db);
+  std::string lak_pub = get_lak_of_eapp(db, uuid);
+  if (lak_pub.empty()) {
+    std::cout << "[VER] Local Attestation Key not available. Verify the certificate chain!" << std::endl;
+    // Maybe request them there?
+    return;
+  }
+
+  // Send the request with the nonce
+  size_t len;
+  send_agent_buffer(local_buffer_agent, 34);
+  byte* buffer = recv_buffer_agent(&len);
+
+  // If there is not an eapp run-time reference value, add to the DB
+  std::string sm_ref_value = get_eapp_sm_hash(db, uuid);
+  std::string nonce_as_string = std::string(reinterpret_cast<const char*>(nonce.data()), nonce.size());
+  std::string encl_runtime_ref_value = get_eapp_rt_hash(db, uuid);
+  if (encl_runtime_ref_value.empty()) {
+    std::cout << "[VER] First EAPP run-time hash retrieved, adding measurement to the DB" << std::endl;
+    std::string eapp_rt_hash = get_enclave_rt_hash_from_report_buffer(buffer);
+    encl_runtime_ref_value = eapp_rt_hash;
+    save_eapp_rt_hash(db, uuid, eapp_rt_hash);
+  }
+
+  bool res_verification = verifier_verify_runtime_report(
+    buffer, encl_runtime_ref_value, sm_ref_value,
+    lak_pub, nonce_as_string
+  );
+  if (res_verification)
+    std::cout << "Verification succesful!" << std::endl;
+  else
+    std::cout << "Verification failed!" << std::endl;
 }
 
 /* Request and verify the certificate chain */
@@ -141,7 +192,11 @@ bool request_cert_chain() {
   if (uuid.empty())
     return false;
 
-  std::string lak_pk_string = std::string(lak_pk, lak_pk + LAK_PUB_LEN);
+  std::string lak_pk_string = "";
+  for (int i = 0; i < LAK_PUB_LEN; ++i)
+    lak_pk_string += char_to_hex_str(lak_pk[i]);
+  
+  std::cout << "LAK string: " << lak_pk_string << std::endl;
   if (!save_trusted_lak_for_eapp(db, uuid, lak_pk_string))
     return false;
 
@@ -218,21 +273,21 @@ int main(int argc, char *argv[])
   
   connect_to_agent_socket();
 
-  /************************* Establish channel *************************/
-
-  trusted_client_init();
+  /************************* Receive boot-time report *************************/
+  
+  //trusted_client_init();
   
   size_t report_size;
   byte* report_buffer = recv_buffer(&report_size);
   trusted_client_get_report(report_buffer, ignore_valid);
   free(report_buffer);
 
-  /* Send pubkey */
+  /*
+  // Send pubkey 
   size_t pubkey_size;
   byte* pubkey = trusted_client_pubkey(&pubkey_size);
-  is_key = true;
   send_buffer(pubkey, pubkey_size);
-
+  */
   /****************************************************************************/
   /****************************************************************************/
 
@@ -241,31 +296,19 @@ int main(int argc, char *argv[])
 
   /* Send/recv messages */
   for(;;){
-    printf("\n[VER] Select the operation [1: Request Certificate Chain, 2: Perform Runtime Attestation, 3: Word Count, q: Quit]:\n> ");
+    printf("\n[VER] Select the operation [1: Request Certificate Chain, 2: Perform Runtime Attestation, q: Quit]:\n> ");
     memset(local_buffer_agent, 0, BUFFERLEN);
     memset(local_buffer, 0, BUFFERLEN);
+    fflush(stdin);
+    fflush(stdout);
     fgets((char*)local_buffer_agent, BUFFERLEN-1, stdin);
     printf("\n");
-
-    if(local_buffer_agent[0] == '3'){
-      printf("[VER] Insert the words to count: ");
-      fgets((char*)local_buffer, BUFFERLEN-1, stdin);
-      printf("\n");
-
-      send_wc_message((char*)local_buffer);
-      size_t reply_size;
-      byte* reply = recv_buffer(&reply_size);
-      trusted_client_read_reply(reply, reply_size);
-      free(reply);
-    }
 
     /* Handle quit */
     if(local_buffer_agent[0] == 'q' && (local_buffer_agent[1] == '\0' || local_buffer_agent[1] == '\n')) {
       std::cout << "[VER] Disconnecting from the TA socket..." << std::endl;
-      memset(local_buffer, 0, BUFFERLEN);
-      fflush(stdin);
-      fflush(stdout);
-      std::this_thread::sleep_for(std::chrono::seconds(2));
+      send_exit_message();
+      close(fd_sock);
 
       std::cout << "[VER] Disconnecting from the agent socket..." << std::endl;
       close_database(db);
@@ -275,7 +318,7 @@ int main(int argc, char *argv[])
     } else if (local_buffer_agent[0] == '1' && (local_buffer_agent[1] == '\0' || local_buffer_agent[1] == '\n')) {
       request_cert_chain();
     } else if (local_buffer_agent[0] == '2' && (local_buffer_agent[1] == '\0' || local_buffer_agent[1] == '\n')) {
-      do_something();
+      perform_runtime_attestation();
     } else
       std::cout << "[VER] Invalid command inserted!" << std::endl;
   }

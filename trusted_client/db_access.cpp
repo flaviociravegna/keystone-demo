@@ -161,6 +161,10 @@ std::string get_eapp_rt_hash(sqlite3* db, std::string uuid) {
     return get_by_criteria(db, uuid, "EAPPS", "HashEappRt");
 }
 
+std::string get_eapp_sm_hash(sqlite3* db, std::string uuid) {
+    return get_by_criteria(db, uuid, "EAPPS", "HashSM");
+}
+
 std::string get_lak_of_eapp(sqlite3 *db, std::string uuid) {
     return get_by_criteria(db, uuid, "LAKS", "LAK_PUB");
 }
@@ -190,6 +194,16 @@ bool save_trusted_lak_for_eapp(sqlite3 *db, std::string uuid, std::string lak) {
         return false;
     }
 
+    //std::cout << "[VER] UUID: " << uuid << std::endl;
+    //std::cout << "[VER] LAK: " << lak << std::endl;
+
     std::string sql_insert = "INSERT INTO LAKS (UUID, LAK_PUB) VALUES ('" + uuid + "', '" + lak + "');";
+    //std::cout << "[VER] Local Attestation Key SQL string: " << sql_insert << std::endl;
+    return execute_query(db, sql_insert.c_str());
+}
+
+bool save_eapp_rt_hash(sqlite3 *db, std::string uuid, std::string rt_hash) {
+    std::string sql_insert = "UPDATE EAPPS SET HashEappRt='" + rt_hash + "' WHERE UUID='" + uuid + "';";
+    //std::cout << "[VER] Runtime Hash SQL string: " << sql_insert << std::endl;
     return execute_query(db, sql_insert.c_str());
 }

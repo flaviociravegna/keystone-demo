@@ -17,7 +17,8 @@
 #include "edge_wrapper.h"
 #include "encl_message.h"
 
-#define PRINT_MESSAGE_BUFFERS 1
+#define PRINT_MESSAGE_BUFFERS 0
+#define NONCE_LEN 32
 
 /* We hardcode these for demo purposes. */
 const char* enc_path = "server_eapp.eapp_riscv";
@@ -35,7 +36,8 @@ void send_buffer(byte* buffer, size_t len){
   write(fd_clientsock, buffer, len);
 }
 
-void send_buffer_agent(byte* buffer, size_t len, bool is_sending_cert) {
+void send_buffer_agent(byte* buffer, size_t len) {
+  write(fd_clientsock_agent, &len, sizeof(size_t));
   write(fd_clientsock_agent, buffer, len);
 }
 
@@ -170,11 +172,18 @@ int wait_for_agent_message(Keystone::Enclave *enclave) {
     enclave->requestCertChain(cert_sm, cert_root, cert_man, cert_lak, lengths);
 
     send_cert_chain_on_buffer_agent(cert_sm, cert_root, cert_man, cert_lak, lengths[0], lengths[1], lengths[2], lengths[3]);
+  } else if (buffer[0] == '2' && buffer[1] == '\0') {
+    unsigned char nonce[32];
+    unsigned char buffer_for_report[1024];
+    int report_size;
+    for (int i = 0; i < 32; i++) nonce[i] = buffer[i + 2];
 
-  } else {
-    std::cout << "[Agent] Code received: " << buffer[0] << std::endl;
+    enclave->requestRuntimeAttestation(nonce, buffer_for_report, &report_size);   
+    //memcpy(buffer, &enclave->getRuntimeAttestationReport(), sizeof(enclave->getRuntimeAttestationReport()));
+    send_buffer_agent((byte *)buffer_for_report, report_size);
   }
 
+  free(buffer);
   return 1;
 }
 

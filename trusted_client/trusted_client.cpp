@@ -73,7 +73,7 @@ void trusted_client_get_report(void* buffer, int ignore_valid){
       trusted_client_exit();
     }
   }
-
+  /*
   if(report.getDataSize() !=  crypto_kx_PUBLICKEYBYTES){
     printf("[VER] Bad report data sec size\n");
     trusted_client_exit();
@@ -87,6 +87,7 @@ void trusted_client_get_report(void* buffer, int ignore_valid){
   }
 
   printf("[VER] Session keys established\n");
+  */
   channel_ready = 1;
 }
 
@@ -228,4 +229,48 @@ std::string get_enclave_boot_hash_as_string() {
     ss << std::hex << std::setw(2) << std::setfill('0') << static_cast<int>(enclave_expected_hash[i]);
   
   return ss.str();
+}
+
+std::string get_enclave_rt_hash_from_report_buffer(void* buffer) {
+  Report report;
+  report.fromBytesRuntime((unsigned char*)buffer);
+  byte* hash = report.getEnclaveRuntimeHash();
+
+  std::string hash_str = "";
+  for (int i = 0; i < enclave_expected_hash_len; ++i)
+    hash_str += char_to_hex_str((unsigned char) hash[i]);
+
+  return hash_str;
+}
+
+bool verifier_verify_runtime_report(
+  void* buffer,
+  std::string enclave_runtime_ref_value,
+  std::string sm_ref_value,
+  std::string lak_pub,
+  std::string nonce_ref_value) {
+
+  Report report;
+  report.fromBytesRuntime((unsigned char*)buffer);
+  std::cout << "[VER] EAPP ref value: " << enclave_runtime_ref_value << std::endl;
+  std::cout << "[VER] SM ref value: " << sm_ref_value << std::endl;
+  std::cout << "[VER] Nonce as string: " << nonce_ref_value << std::endl;
+
+  // <_sanctum_dev_public_key> provided "in test_dev_key.h"
+  if (report.verifyRuntimeReport(
+    (byte *)enclave_runtime_ref_value.c_str(), (byte *)sm_ref_value.c_str(),
+    (byte *)_sanctum_dev_public_key, (byte *)lak_pub.c_str())) {
+    printf("[VER] Attestation signature and enclave hash are valid\n");
+  } else {
+    printf("[VER] Attestation report is NOT valid\n");
+    return false;
+  }
+
+  // To move up before the other if
+  if(memcmp(report.getNonceRuntime(), nonce_ref_value.c_str(), 32) == 0){
+    printf("[VER] The nonce is different from the expected one\n");
+    return false;
+  }
+
+  return true;
 }
