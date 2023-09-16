@@ -29,6 +29,7 @@ byte* trusted_client_box(byte* msg, size_t size, size_t* finalsize);
 void trusted_client_unbox(unsigned char* buffer, size_t len);
 
 std::string char_to_hex_str(unsigned char c);
+void hex_string_to_bytes(const std::string& hexString, unsigned char* buffer);
 std::string get_sm_hash_as_string();
 std::string get_enclave_boot_hash_as_string();
 std::string get_enclave_rt_hash_from_report_buffer(void* buffer);

@@ -73,12 +73,12 @@ void trusted_client_get_report(void* buffer, int ignore_valid){
       trusted_client_exit();
     }
   }
-  /*
   if(report.getDataSize() !=  crypto_kx_PUBLICKEYBYTES){
     printf("[VER] Bad report data sec size\n");
     trusted_client_exit();
   }
 
+  /*
   memcpy(server_pk, report.getDataSection(), crypto_kx_PUBLICKEYBYTES);
 
   if(crypto_kx_client_session_keys(rx, tx, client_pk, client_sk, server_pk) != 0) {
@@ -214,6 +214,14 @@ std::string char_to_hex_str(unsigned char c) {
   return ss.str();
 }
 
+void hex_string_to_bytes(const std::string& hexString, unsigned char* buffer) {
+    std::istringstream hexStream(hexString);
+    unsigned int byteValue, index = 0;
+
+    while (hexStream >> std::hex >> byteValue)
+        buffer[index++] = static_cast<unsigned char>(byteValue);
+}
+
 std::string get_sm_hash_as_string() {
   std::stringstream ss;
   for (int i = 0; i < sm_expected_hash_len; ++i)
@@ -250,25 +258,26 @@ bool verifier_verify_runtime_report(
   std::string lak_pub,
   std::string nonce_ref_value) {
 
-  Report report;
-  report.fromBytesRuntime((unsigned char*)buffer);
-  std::cout << "[VER] EAPP ref value: " << enclave_runtime_ref_value << std::endl;
-  std::cout << "[VER] SM ref value: " << sm_ref_value << std::endl;
-  std::cout << "[VER] Nonce as string: " << nonce_ref_value << std::endl;
-
-  // <_sanctum_dev_public_key> provided "in test_dev_key.h"
-  if (report.verifyRuntimeReport(
-    (byte *)enclave_runtime_ref_value.c_str(), (byte *)sm_ref_value.c_str(),
-    (byte *)_sanctum_dev_public_key, (byte *)lak_pub.c_str())) {
-    printf("[VER] Attestation signature and enclave hash are valid\n");
-  } else {
-    printf("[VER] Attestation report is NOT valid\n");
+  if(memcmp(report.getNonceRuntime(), nonce_ref_value.c_str(), 32) == 0){
+    printf("[VER] The nonce is different from the expected one\n");
     return false;
   }
 
-  // To move up before the other if
-  if(memcmp(report.getNonceRuntime(), nonce_ref_value.c_str(), 32) == 0){
-    printf("[VER] The nonce is different from the expected one\n");
+  // <_sanctum_dev_public_key> provided "in test_dev_key.h"
+  byte eappRefArray[enclave_expected_hash_len];
+  byte smRefArray[sm_expected_hash_len];
+  byte lakRefArray[32];
+
+  Report report;
+  report.fromBytesRuntime((unsigned char*)buffer);
+  report.HexToBytes(eappRefArray, enclave_expected_hash_len, enclave_runtime_ref_value);
+  report.HexToBytes(smRefArray, sm_expected_hash_len, sm_ref_value);
+  report.HexToBytes(lakRefArray, 32, lak_pub);
+
+  if (report.verifyRuntimeReport(eappRefArray, smRefArray, _sanctum_dev_public_key, lakRefArray))
+    printf("[VER] Attestation signature and enclave hash are valid\n");
+  else {
+    printf("[VER] Attestation report is NOT valid\n");
     return false;
   }
 

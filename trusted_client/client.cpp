@@ -123,12 +123,6 @@ void perform_runtime_attestation() {
   local_buffer_agent[0] = '2';
   local_buffer_agent[1] = '\0';
   std::copy(nonce.begin(), nonce.end(), local_buffer_agent + 2);
-  //for (int i = 2; i < 34; i++)  local_buffer_agent[i] = nonce[i - 2];
-
-  std::cout << "Buffer: ";
-  for (int i = 2; i < 34; i++)
-    printf("%02x", local_buffer_agent[i]);
-  std::cout << std::endl;
 
   // If the LAK is not present, the attestation cannot be performed
   std::string uuid = get_test_uuid(db);
@@ -144,22 +138,23 @@ void perform_runtime_attestation() {
   send_agent_buffer(local_buffer_agent, 34);
   byte* buffer = recv_buffer_agent(&len);
 
-  // If there is not an eapp run-time reference value, add to the DB
   std::string sm_ref_value = get_eapp_sm_hash(db, uuid);
-  std::string nonce_as_string = std::string(reinterpret_cast<const char*>(nonce.data()), nonce.size());
   std::string encl_runtime_ref_value = get_eapp_rt_hash(db, uuid);
+  std::string nonce_as_string = "";
+
+  // If there is not an eapp run-time reference value, add to the DB
   if (encl_runtime_ref_value.empty()) {
     std::cout << "[VER] First EAPP run-time hash retrieved, adding measurement to the DB" << std::endl;
-    std::string eapp_rt_hash = get_enclave_rt_hash_from_report_buffer(buffer);
-    encl_runtime_ref_value = eapp_rt_hash;
-    save_eapp_rt_hash(db, uuid, eapp_rt_hash);
+    encl_runtime_ref_value = get_enclave_rt_hash_from_report_buffer(buffer);
+    save_eapp_rt_hash(db, uuid, encl_runtime_ref_value);
   }
 
-  bool res_verification = verifier_verify_runtime_report(
-    buffer, encl_runtime_ref_value, sm_ref_value,
-    lak_pub, nonce_as_string
-  );
-  if (res_verification)
+  for (unsigned char c : nonce)
+    nonce_as_string += char_to_hex_str(c);
+
+  if (verifier_verify_runtime_report(
+        buffer, encl_runtime_ref_value, sm_ref_value,
+        lak_pub, nonce_as_string))
     std::cout << "Verification succesful!" << std::endl;
   else
     std::cout << "Verification failed!" << std::endl;
