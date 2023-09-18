@@ -100,7 +100,7 @@ void connect_to_agent_socket() {
     exit(-1);
   }
 
-  std::cout << "[VER] Connected to the agent socket!\n" << std::endl;
+  std::cout << "[VER] Connected to the agent socket!" << std::endl;
 }
 
 std::array<unsigned char, NONCE_LEN> generate_nonce() {
@@ -115,54 +115,10 @@ std::array<unsigned char, NONCE_LEN> generate_nonce() {
     return nonce;
 }
 
-void perform_runtime_attestation() {
-  std::cout << "[VER] Performing run-time attestation..." << std::endl;
-
-  // Copy the generated nonce after "2\0" 
-  std::array<unsigned char, 32> nonce = generate_nonce();
-  local_buffer_agent[0] = '2';
-  local_buffer_agent[1] = '\0';
-  std::copy(nonce.begin(), nonce.end(), local_buffer_agent + 2);
-
-  // If the LAK is not present, the attestation cannot be performed
-  std::string uuid = get_test_uuid(db);
-  std::string lak_pub = get_lak_of_eapp(db, uuid);
-  if (lak_pub.empty()) {
-    std::cout << "[VER] Local Attestation Key not available. Verify the certificate chain!" << std::endl;
-    // Maybe request them there?
-    return;
-  }
-
-  // Send the request with the nonce
-  size_t len;
-  send_agent_buffer(local_buffer_agent, 34);
-  byte* buffer = recv_buffer_agent(&len);
-
-  std::string sm_ref_value = get_eapp_sm_hash(db, uuid);
-  std::string encl_runtime_ref_value = get_eapp_rt_hash(db, uuid);
-  std::string nonce_as_string = "";
-
-  // If there is not an eapp run-time reference value, add to the DB
-  if (encl_runtime_ref_value.empty()) {
-    std::cout << "[VER] First EAPP run-time hash retrieved, adding measurement to the DB" << std::endl;
-    encl_runtime_ref_value = get_enclave_rt_hash_from_report_buffer(buffer);
-    save_eapp_rt_hash(db, uuid, encl_runtime_ref_value);
-  }
-
-  for (unsigned char c : nonce)
-    nonce_as_string += char_to_hex_str(c);
-
-  if (verifier_verify_runtime_report(
-        buffer, encl_runtime_ref_value, sm_ref_value,
-        lak_pub, nonce_as_string))
-    std::cout << "Verification succesful!" << std::endl;
-  else
-    std::cout << "Verification failed!" << std::endl;
-}
-
 /* Request and verify the certificate chain */
 bool request_cert_chain() {
   std::cout << "[VER] Requesting the certificates..." << std::endl;
+  memset(local_buffer_agent, 0, BUFFERLEN);
   local_buffer_agent[0] = '1';
   local_buffer_agent[1] = '\0';
   send_agent_buffer(local_buffer_agent, 2);
@@ -191,11 +147,53 @@ bool request_cert_chain() {
   for (int i = 0; i < LAK_PUB_LEN; ++i)
     lak_pk_string += char_to_hex_str(lak_pk[i]);
   
-  std::cout << "LAK string: " << lak_pk_string << std::endl;
   if (!save_trusted_lak_for_eapp(db, uuid, lak_pk_string))
     return false;
 
   return true;
+}
+
+void perform_runtime_attestation() {
+  // If the LAK is not present, the attestation cannot be performed
+  std::cout << "[VER] Performing run-time attestation..." << std::endl;
+  std::string uuid = get_test_uuid(db);
+  std::string lak_pub = get_lak_of_eapp(db, uuid);
+  if (lak_pub.empty()) {
+    std::cout << "[VER] Local Attestation Key not available. Verify the certificate chain as first step!" << std::endl;
+    return;
+  }
+
+  // Copy the generated nonce after "2\0" 
+  std::array<unsigned char, 32> nonce = generate_nonce();
+  local_buffer_agent[0] = '2';
+  local_buffer_agent[1] = '\0';
+  std::copy(nonce.begin(), nonce.end(), local_buffer_agent + 2);
+
+  // Send the request with the nonce
+  size_t len;
+  send_agent_buffer(local_buffer_agent, 34);
+  byte* buffer = recv_buffer_agent(&len);
+
+  std::string sm_ref_value = get_eapp_sm_hash(db, uuid);
+  std::string encl_runtime_ref_value = get_eapp_rt_hash(db, uuid);
+  std::string nonce_as_string = "";
+
+  // If there is not an eapp run-time reference value, add to the DB
+  if (encl_runtime_ref_value.empty()) {
+    std::cout << "[VER] First EAPP run-time hash retrieved, adding measurement to the DB" << std::endl;
+    encl_runtime_ref_value = get_enclave_rt_hash_from_report_buffer(buffer);
+    save_eapp_rt_hash(db, uuid, encl_runtime_ref_value);
+  }
+
+  for (unsigned char c : nonce)
+    nonce_as_string += char_to_hex_str(c);
+
+  if (verifier_verify_runtime_report(
+        buffer, encl_runtime_ref_value, sm_ref_value,
+        lak_pub, nonce_as_string))
+    std::cout << "[VER] Verification succesful!" << std::endl;
+  else
+    std::cout << "[VER] Verification failed!" << std::endl;
 }
 
 /****************************************************************/
@@ -269,20 +267,13 @@ int main(int argc, char *argv[])
   connect_to_agent_socket();
 
   /************************* Receive boot-time report *************************/
-  
-  //trusted_client_init();
-  
+
+  printf("[VER] Requesting boot-time attestation report...\n");
   size_t report_size;
   byte* report_buffer = recv_buffer(&report_size);
   trusted_client_get_report(report_buffer, ignore_valid);
   free(report_buffer);
 
-  /*
-  // Send pubkey 
-  size_t pubkey_size;
-  byte* pubkey = trusted_client_pubkey(&pubkey_size);
-  send_buffer(pubkey, pubkey_size);
-  */
   /****************************************************************************/
   /****************************************************************************/
 
@@ -301,13 +292,13 @@ int main(int argc, char *argv[])
 
     /* Handle quit */
     if(local_buffer_agent[0] == 'q' && (local_buffer_agent[1] == '\0' || local_buffer_agent[1] == '\n')) {
-      std::cout << "[VER] Disconnecting from the TA socket..." << std::endl;
-      send_exit_message();
-      close(fd_sock);
-
       std::cout << "[VER] Disconnecting from the agent socket..." << std::endl;
       close_database(db);
       close(fd_sock_agent);
+
+      std::cout << "[VER] Disconnecting from the TA socket..." << std::endl;
+      send_exit_message();
+      close(fd_sock);
 
       exit(0);
     } else if (local_buffer_agent[0] == '1' && (local_buffer_agent[1] == '\0' || local_buffer_agent[1] == '\n')) {

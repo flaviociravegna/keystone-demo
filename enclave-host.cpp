@@ -158,7 +158,7 @@ encl_message_t wait_for_message(){
   return message;
 }
 
-int wait_for_agent_message(Keystone::Enclave *enclave) {
+int wait_for_agent_message(Keystone::Enclave *enclave, bool *exit) {
   size_t len;
   char* buffer = (char *)recv_buffer_agent(&len);
 
@@ -169,8 +169,8 @@ int wait_for_agent_message(Keystone::Enclave *enclave) {
     unsigned char cert_man[512];
     unsigned char cert_lak[512];
     int lengths[4];
+    
     enclave->requestCertChain(cert_sm, cert_root, cert_man, cert_lak, lengths);
-
     send_cert_chain_on_buffer_agent(cert_sm, cert_root, cert_man, cert_lak, lengths[0], lengths[1], lengths[2], lengths[3]);
   } else if (buffer[0] == '2' && buffer[1] == '\0') {
     unsigned char nonce[32];
@@ -178,10 +178,10 @@ int wait_for_agent_message(Keystone::Enclave *enclave) {
     int report_size;
     for (int i = 0; i < 32; i++) nonce[i] = buffer[i + 2];
 
-    enclave->requestRuntimeAttestation(nonce, buffer_for_report, &report_size);   
-    //memcpy(buffer, &enclave->getRuntimeAttestationReport(), sizeof(enclave->getRuntimeAttestationReport()));
+    enclave->requestRuntimeAttestation(nonce, buffer_for_report, &report_size);
     send_buffer_agent((byte *)buffer_for_report, report_size);
-  }
+  } else if (buffer[0] == 'q' && buffer[1] == '\0')
+    *exit = true;
 
   free(buffer);
   return 1;
@@ -250,34 +250,10 @@ void init_network_wait(){
   }
 }
 
-void worker_request_runtime_attestation(Keystone::Enclave *enclave) {
-  for (int i = 0; i < 3; i++) {
-    std::cout << "ok " << std::endl;
-    /*
-    std::cout << "[Agent] Agent waiting for some seconds..." << std::endl;
-    std::this_thread::sleep_for(std::chrono::seconds(3));
-
-    std::cout << "[Agent] Performing runtime attestation..." << std::endl;
-    enclave->requestRuntimeAttestation();
-
-    // print the report computed
-    std::cout << "[Agent] Computed hash: " << std::endl;
-    print_hex_data_2((enclave->getRuntimeAttestationReport())->enclave.hash, sizeof((enclave->getRuntimeAttestationReport())->enclave.hash));
-    */
-  }
-}
-
 void run_agent(Keystone::Enclave *enclave) {
-  // Accept incoming requests and perform attestation
-  //std::cout << "[Agent] Agent initialized" << std::endl;
-
-  // .... accept requests
-  for (int i = 0; i < 30; i++)
-    wait_for_agent_message(enclave);
-
-  // Spawn a thread for each request
-  /*std::thread worker(worker_request_runtime_attestation, enclave);
-  worker.join();  */
+  bool exit = false;
+  while (!exit)
+    wait_for_agent_message(enclave, &exit);
 }
 
 void run_enclave(Keystone::Enclave *enclave) {

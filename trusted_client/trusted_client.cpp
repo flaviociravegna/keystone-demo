@@ -57,6 +57,7 @@ void trusted_client_get_report(void* buffer, int ignore_valid){
   report.fromBytes((unsigned char*)buffer);
   report.printPretty();
 
+  printf("[VER] Verification of the boot-time attestation report...\n");
   if (report.verify(enclave_expected_hash,
   		    sm_expected_hash,
   		    _sanctum_dev_public_key))
@@ -77,17 +78,7 @@ void trusted_client_get_report(void* buffer, int ignore_valid){
     printf("[VER] Bad report data sec size\n");
     trusted_client_exit();
   }
-
-  /*
-  memcpy(server_pk, report.getDataSection(), crypto_kx_PUBLICKEYBYTES);
-
-  if(crypto_kx_client_session_keys(rx, tx, client_pk, client_sk, server_pk) != 0) {
-    printf("[VER] Bad session keygen\n");
-    trusted_client_exit();
-  }
-
-  printf("[VER] Session keys established\n");
-  */
+  
   channel_ready = 1;
 }
 
@@ -257,6 +248,8 @@ bool verifier_verify_runtime_report(
   std::string sm_ref_value,
   std::string lak_pub,
   std::string nonce_ref_value) {
+  Report report;
+  report.fromBytesRuntime((unsigned char*)buffer);
 
   if(memcmp(report.getNonceRuntime(), nonce_ref_value.c_str(), 32) == 0){
     printf("[VER] The nonce is different from the expected one\n");
@@ -268,8 +261,6 @@ bool verifier_verify_runtime_report(
   byte smRefArray[sm_expected_hash_len];
   byte lakRefArray[32];
 
-  Report report;
-  report.fromBytesRuntime((unsigned char*)buffer);
   report.HexToBytes(eappRefArray, enclave_expected_hash_len, enclave_runtime_ref_value);
   report.HexToBytes(smRefArray, sm_expected_hash_len, sm_ref_value);
   report.HexToBytes(lakRefArray, 32, lak_pub);
