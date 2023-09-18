@@ -245,6 +245,7 @@ int main(int argc, char *argv[])
   }
 
   // Start the enclave...  
+  std::cout << "[VER] Connecting to the enclave..." << std::endl;
   fd_sock = socket(AF_INET, SOCK_STREAM, 0);
   if(fd_sock < 0){
     printf("[VER] No socket\n");

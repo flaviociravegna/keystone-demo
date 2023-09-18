@@ -30,6 +30,7 @@ int fd_clientsock;
 int fd_clientsock_agent;
 #define BUFFERLEN 4096
 byte local_buffer[BUFFERLEN], local_buffer_agent[BUFFERLEN];
+std::string IP_broadcast_qemu = "192.168.100.2";
 
 void send_buffer(byte* buffer, size_t len){
   write(fd_clientsock, &len, sizeof(size_t));
@@ -211,6 +212,7 @@ void init_network_agent() {
     exit(-1);
   }
 
+  std::cout << "[Agent] Agent waiting for connection..." << std::endl;
   listen(fd_sock, 2);
 
   socklen_t client_len = sizeof(client_addr);
@@ -220,6 +222,8 @@ void init_network_agent() {
     printf("[Agent] No valid client socket\n");
     exit(-1);
   }
+
+  std::cout << "[Agent] Agent connected on port " << PORTNUM_AGENT << std::endl;
 }
 
 void init_network_wait(){
@@ -239,6 +243,7 @@ void init_network_wait(){
     printf("[Agent] Failed to bind socket\n");
     exit(-1);
   }
+  std::cout << "[Agent] Server waiting for connection..." << std::endl;
   listen(fd_sock,2);
 
   struct sockaddr_in client_addr;
@@ -248,6 +253,8 @@ void init_network_wait(){
     printf("[Agent] No valid client socket\n");
     exit(-1);
   }
+
+  std::cout << "[Agent] Connected to the enclave on port " << PORTNUM << std::endl;
 }
 
 void run_agent(Keystone::Enclave *enclave) {

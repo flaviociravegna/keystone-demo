@@ -1,4 +1,9 @@
 # set paths for mbedtls
+set(CMAKE_C_COMPILER /usr/bin/gcc)
+set(CMAKE_CXX_COMPILER /usr/bin/g++)
+set(CMAKE_ASM_COMPILER /usr/bin/gcc)
+set(CMAKE_LINKER /usr/bin/ld)
+
 set(MBEDTLS_LIB_CRYPTO_HOST ${MBEDTLS_DIR_HOST}/build/library/libmbedcrypto.a)
 set(MBEDTLS_LIB_TLS_HOST ${MBEDTLS_DIR_HOST}/build/library/libmbedtls.a)
 set(MBEDTLS_LIB_X509_HOST ${MBEDTLS_DIR_HOST}/build/library/libmbedx509.a)
@@ -12,7 +17,7 @@ set(ed25519_files ../my_mbedtls_stdlib/ed25519/ed25519.h ../my_mbedtls_stdlib/ed
 ../my_mbedtls_stdlib/ed25519/sc.h ../my_mbedtls_stdlib/ed25519/sc.c ../my_mbedtls_stdlib/ed25519/sign.c ../my_mbedtls_stdlib/ed25519/verify.c)
 
 # trusted client
-add_executable(trusted_client.riscv
+#[[add_executable(trusted_client.riscv
   client.cpp
   trusted_client.cpp
   db_access.cpp
@@ -32,6 +37,38 @@ target_link_libraries(trusted_client.riscv
 )
 
 target_include_directories(trusted_client.riscv
+  PRIVATE ${MBEDTLS_DIR_HOST}/include
+  PRIVATE ${my_mbedtls_dir}/include
+  PRIVATE ${my_mbedtls_dir}
+  PRIVATE ${sha3_dir}  
+  PRIVATE .
+)]]
+
+# ********** trusted client (Verifier non-riscv)*********
+set(MBEDTLS_DIR_HOST_STD $ENV{MBEDTLS_DIR_HOST_STD})
+set(MBEDTLS_LIB_CRYPTO_HOST_STD ${MBEDTLS_DIR_HOST_STD}/build/library/libmbedcrypto.a)
+set(MBEDTLS_LIB_TLS_HOST_STD ${MBEDTLS_DIR_HOST_STD}/build/library/libmbedtls.a)
+set(MBEDTLS_LIB_X509_HOST_STD ${MBEDTLS_DIR_HOST_STD}/build/library/libmbedx509.a)
+
+add_executable(trusted_client_unix
+  client.cpp
+  trusted_client.cpp
+  db_access.cpp
+  ../include/enclave_expected_hash.h
+  ../include/sm_expected_hash.h
+  sqlite-amalgamation-3420000/sqlite3.c
+  cert_verifier.c
+  ${my_mbedtls_files} ${sha3_dir}/sha3.h ${sha3_dir}/sha3.c ${ed25519_files}
+)
+
+target_link_libraries(trusted_client_unix
+  ${KEYSTONE_LIB_VERIFIER_STD}
+  ${CMAKE_DL_LIBS}
+  ${MBEDTLS_LIB_TLS_HOST} ${MBEDTLS_LIB_X509_HOST} ${MBEDTLS_LIB_CRYPTO_HOST}
+  Threads::Threads
+)
+
+target_include_directories(trusted_client_unix
   PRIVATE ${MBEDTLS_DIR_HOST}/include
   PRIVATE ${my_mbedtls_dir}/include
   PRIVATE ${my_mbedtls_dir}

@@ -25,6 +25,10 @@ set(MBEDTLS_DIR_HOST $ENV{MBEDTLS_DIR_HOST})
 
 include($ENV{KEYSTONE_SDK_DIR}/cmake/macros.cmake)
 
+if (NOT DEFINED ENV{KEYSTONE_SDK_STD_DIR})
+  message(FATAL_ERROR "Please set KEYSTONE_SDK_STD_DIR environment variable to an installed SDK path")
+endif()
+
 if(RISCV32)
   message(STATUS "riscv32")
   set(BITS 32)
@@ -40,6 +44,9 @@ set(KEYSTONE_LIB_HOST ${KEYSTONE_SDK_DIR}/lib/libkeystone-host.a)
 set(KEYSTONE_LIB_EDGE ${KEYSTONE_SDK_DIR}/lib/libkeystone-edge.a)
 set(KEYSTONE_LIB_VERIFIER ${KEYSTONE_SDK_DIR}/lib/libkeystone-verifier.a)
 set(KEYSTONE_LIB_EAPP ${KEYSTONE_SDK_DIR}/lib/libkeystone-eapp.a)
+
+set(KEYSTONE_SDK_STD_DIR $ENV{KEYSTONE_SDK_STD_DIR})
+set(KEYSTONE_LIB_VERIFIER_STD ${KEYSTONE_SDK_STD_DIR}/lib/libkeystone-verifier-non-riscv.a)
 
 # find program "makeself"
 find_program(MAKESELF makeself)
@@ -58,22 +65,6 @@ include_directories(include
 
 # trusted client
 add_subdirectory(trusted_client)
-
-# trusted client (non-RISC-V version)
-#add_executable(trusted_client_linux_version
-#  trusted_client/client.cpp
-#  trusted_client/trusted_client.cpp
-#  trusted_client/db_access.cpp
-#  include/enclave_expected_hash.h
-#  include/sm_expected_hash.h
-#  trusted_client/sqlite-amalgamation-3420000/sqlite3.c
-#)
-
-#target_link_libraries(trusted_client_linux_version
-#  ${LIBSODIUM_CLIENT_DIR}/.libs/libsodium.a
-#  ${CMAKE_DL_LIBS}
-#  Threads::Threads
-#)
 
 # enclave
 add_subdirectory(server_eapp)

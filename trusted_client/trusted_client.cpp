@@ -9,15 +9,16 @@
 #include "enclave_expected_hash.h"
 #include "sm_expected_hash.h"
 
-
+/*
 unsigned char client_pk[crypto_kx_PUBLICKEYBYTES];
 unsigned char client_sk[crypto_kx_SECRETKEYBYTES];
 unsigned char server_pk[crypto_kx_PUBLICKEYBYTES];
 unsigned char rx[crypto_kx_SESSIONKEYBYTES];
-unsigned char tx[crypto_kx_SESSIONKEYBYTES];
+unsigned char tx[crypto_kx_SESSIONKEYBYTES];*/
 
 int double_fault;
 int channel_ready;
+
 
 void trusted_client_exit(){
   if(double_fault || !channel_ready){
@@ -31,7 +32,7 @@ void trusted_client_exit(){
     exit(0);
   }
 }
-
+/*
 void trusted_client_init(){
 
   if( sodium_init() != 0){
@@ -50,7 +51,7 @@ byte* trusted_client_pubkey(size_t* len){
   *len = crypto_kx_PUBLICKEYBYTES;
   return (byte*)client_pk;
 }
-
+*/
 void trusted_client_get_report(void* buffer, int ignore_valid){
 
   Report report;
@@ -74,7 +75,7 @@ void trusted_client_get_report(void* buffer, int ignore_valid){
       trusted_client_exit();
     }
   }
-  if(report.getDataSize() !=  crypto_kx_PUBLICKEYBYTES){
+  if(report.getDataSize() !=  32){
     printf("[VER] Bad report data sec size\n");
     trusted_client_exit();
   }
@@ -84,7 +85,7 @@ void trusted_client_get_report(void* buffer, int ignore_valid){
 
 #define MSG_BLOCKSIZE 32
 #define BLOCK_UP(len) (len+(MSG_BLOCKSIZE - (len%MSG_BLOCKSIZE)))
-
+/*
 byte* trusted_client_box(byte* msg, size_t size, size_t* finalsize){
   size_t size_padded = BLOCK_UP(size);
   *finalsize = size_padded + crypto_secretbox_MACBYTES + crypto_secretbox_NONCEBYTES;
@@ -132,7 +133,6 @@ void trusted_client_unbox(unsigned char* buffer, size_t len){
 
   return;
 }
-
 int trusted_client_read_reply(unsigned char* data, size_t len){
 
   trusted_client_unbox(data, len);
@@ -142,33 +142,35 @@ int trusted_client_read_reply(unsigned char* data, size_t len){
   printf("[VER] Enclave said string was %i words long\n",*replyval);
 
 }
+*/
 
 void send_exit_message(){
 
   size_t pt_size;
   calc_message_t* pt_msg = generate_exit_message(&pt_size);
+  byte* bytes_msg = (byte*)malloc(pt_size);
+  memcpy(bytes_msg, pt_msg, pt_size);
+  send_buffer(bytes_msg, pt_size);
+  //size_t ct_size;
+  //byte* ct_msg = trusted_client_box((byte*)pt_msg, pt_size, &ct_size);
 
-  size_t ct_size;
-  byte* ct_msg = trusted_client_box((byte*)pt_msg, pt_size, &ct_size);
-
-  send_buffer(ct_msg, ct_size);
 
   free(pt_msg);
-  free(ct_msg);
+  free(bytes_msg);
 }
 
 void send_wc_message(char* buffer){
 
   size_t pt_size;
   calc_message_t* pt_msg = generate_wc_message(buffer, strlen(buffer)+1, &pt_size);
-
-  size_t ct_size;
-  byte* ct_msg = trusted_client_box((byte*)pt_msg, pt_size, &ct_size);
-
-  send_buffer(ct_msg, ct_size);
+  byte* bytes_msg = (byte*)malloc(pt_size);
+  memcpy(bytes_msg, pt_msg, pt_size);
+  send_buffer(bytes_msg, pt_size);
+  //size_t ct_size;
+  //byte* ct_msg = trusted_client_box((byte*)pt_msg, pt_size, &ct_size);
 
   free(pt_msg);
-  free(ct_msg);
+  free(bytes_msg);
 
 }
 
