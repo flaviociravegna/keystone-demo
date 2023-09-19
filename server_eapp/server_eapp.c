@@ -4,20 +4,17 @@
 #include "malloc.h"
 #include "edge_wrapper.h"
 #include "calculator.h"
-#include "sodium.h"
 #include "hacks.h"
-#include "channel.h"
 
 
 void attest_and_establish_channel(){
   // TODO sizeof report
   char buffer[2048];
-  attest_enclave((void*) buffer, "12345678901234567890123456789012", crypto_kx_PUBLICKEYBYTES);
+  attest_enclave((void*) buffer, "12345678901234567890123456789012", 32);
   ocall_send_report(buffer, 2048);
 
-
-  ocall_wait_for_client_pubkey(client_pk, crypto_kx_PUBLICKEYBYTES);
-  channel_establish();
+  //ocall_wait_for_client_pubkey(client_pk, 32);
+  //channel_establish();
 }
 
 void handle_messages(){

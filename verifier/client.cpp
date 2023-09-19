@@ -9,7 +9,7 @@
 #include <unistd.h>
 #include <random>
 
-#include "trusted_client.h"
+#include "verifier.h"
 #include "client.h"
 #include "db_access.h"
 extern "C" {
@@ -61,20 +61,20 @@ byte* recv_buffer_agent(size_t* len){
   ssize_t n_read = read(fd_sock_agent, local_buffer_agent, sizeof(size_t));
   if(n_read != sizeof(size_t)){
     printf("[VER] Invalid message header\n");
-    trusted_client_exit();
+    verifier_exit();
   }
 
   size_t reply_size = *(size_t*)local_buffer_agent;
   byte* reply = (byte*)malloc(reply_size);
   if(reply == NULL) {
     printf("[VER] Message too large\n");
-    trusted_client_exit();
+    verifier_exit();
   }
 
   n_read = read(fd_sock_agent, reply, reply_size);
   if(n_read != reply_size) {
     printf("[VER] Bad message size\n");
-    trusted_client_exit();
+    verifier_exit();
   }
 
   *len = reply_size;
@@ -236,25 +236,29 @@ byte* recv_buffer(size_t* len){
   if(n_read != sizeof(size_t)){
     // Shutdown
     printf("[TC] Invalid message header\n");
-    trusted_client_exit();
+    verifier_exit();
   }
   size_t reply_size = *(size_t*)local_buffer;
   byte* reply = (byte*)malloc(reply_size);
   if(reply == NULL){
     // Shutdown
     printf("[TC] Message too large\n");
-    trusted_client_exit();
+    verifier_exit();
   }
   n_read = read(fd_sock, reply, reply_size);
   if(n_read != reply_size){
     printf("[TC] Bad message size\n");
     // Shutdown
-    trusted_client_exit();
+    verifier_exit();
   }
 
   *len = reply_size;
   return reply;
 }
+
+/****************************************************************/
+/****************************************************************/
+/****************************************************************/
 
 int main(int argc, char *argv[])
 {
@@ -298,7 +302,7 @@ int main(int argc, char *argv[])
   printf("[VER] Requesting boot-time attestation report...\n");
   size_t report_size;
   byte* report_buffer = recv_buffer(&report_size);
-  trusted_client_get_report(report_buffer, ignore_valid);
+  verifier_get_boot_report(report_buffer, ignore_valid);
   free(report_buffer);
 
   /****************************************************************************/

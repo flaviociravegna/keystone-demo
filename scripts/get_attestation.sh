@@ -22,28 +22,14 @@ extracthash () {
     # Generalize me!
     expect_commands='
     set timeout 60
-    cd $::env(KEYSTONE_DIR)
-    spawn ./scripts/run-qemu.sh
-    expect "*?ogin" { send "root\r" }
-    expect "*?assword" { send "sifive\r" }
+    cd $::env(DEMO_DIR)/build/verifier/
+    spawn ./verifier_unix 127.0.0.1 --ignore-valid
 
-    expect "# " { send "insmod keystone-driver.ko\r" }
-
-
-    expect "# " { send "ifdown lo && ifup lo\r" }
-    expect "# " { send "cd keystone-demo\r" }
-    expect "# " { send "chmod +x demo-server.riscv trusted_client.riscv\r" }
-    expect "# " { send "./demo-server.riscv &\r" }
-    expect "# " { send "echo q | ./trusted_client.riscv 127.0.0.1 --ingnore-valid\r" }
-
-
-    expect "# " { send "poweroff\r" }
-    expect eof
+    expect "operation: " { send "q" }
     '
     expect -c "${expect_commands//
 /;}"
 }
-
 
 extracthash | tee extract_hash.log
 SM_HASH=$(awk '/=== Security Monitor ===/,/=== Enclave Application ===/' extract_hash.log  | grep "Hash: " | cut -c 7-)
@@ -52,7 +38,6 @@ rm -f extract_hash.log
 cd $output_path
 if [ "${SM_HASH}xxx" = "xxx" ]; then
     echo Could not extract the SM_HASH!;
-    exit
 fi
 if [ "${EAPP_HASH}xxx" = "xxx" ]; then
     echo Could not extract the EAPP_HASH!;

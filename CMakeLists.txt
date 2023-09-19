@@ -8,7 +8,11 @@ if (NOT DEFINED ENV{KEYSTONE_SDK_DIR})
 endif()
 set(KEYSTONE_SDK_DIR $ENV{KEYSTONE_SDK_DIR})
 
-if (NOT DEFINED ENV{LIBSODIUM_CLIENT_DIR})
+if (NOT DEFINED ENV{KEYSTONE_SDK_NON_RISCV_DIR})
+  message(FATAL_ERROR "Please set KEYSTONE_SDK_NON_RISCV_DIR environment variable to an installed SDK path")
+endif()
+
+#[[if (NOT DEFINED ENV{LIBSODIUM_CLIENT_DIR})
   message(FATAL_ERROR "Please set LIBSODIUM_CLIENT_DIR")
 endif()
 set(LIBSODIUM_CLIENT_DIR $ENV{LIBSODIUM_CLIENT_DIR})
@@ -16,7 +20,7 @@ set(LIBSODIUM_CLIENT_DIR $ENV{LIBSODIUM_CLIENT_DIR})
 if (NOT DEFINED ENV{LIBSODIUM_DIR})
   message(FATAL_ERROR "Please set LIBSODIUM_DIR")
 endif()
-set(LIBSODIUM_DIR $ENV{LIBSODIUM_DIR})
+set(LIBSODIUM_DIR $ENV{LIBSODIUM_DIR})]]
 
 if (NOT DEFINED ENV{MBEDTLS_DIR_HOST})
   message(FATAL_ERROR "Please set MBEDTLS_DIR_HOST")
@@ -24,10 +28,6 @@ endif()
 set(MBEDTLS_DIR_HOST $ENV{MBEDTLS_DIR_HOST})
 
 include($ENV{KEYSTONE_SDK_DIR}/cmake/macros.cmake)
-
-if (NOT DEFINED ENV{KEYSTONE_SDK_STD_DIR})
-  message(FATAL_ERROR "Please set KEYSTONE_SDK_STD_DIR environment variable to an installed SDK path")
-endif()
 
 if(RISCV32)
   message(STATUS "riscv32")
@@ -45,8 +45,8 @@ set(KEYSTONE_LIB_EDGE ${KEYSTONE_SDK_DIR}/lib/libkeystone-edge.a)
 set(KEYSTONE_LIB_VERIFIER ${KEYSTONE_SDK_DIR}/lib/libkeystone-verifier.a)
 set(KEYSTONE_LIB_EAPP ${KEYSTONE_SDK_DIR}/lib/libkeystone-eapp.a)
 
-set(KEYSTONE_SDK_STD_DIR $ENV{KEYSTONE_SDK_STD_DIR})
-set(KEYSTONE_LIB_VERIFIER_STD ${KEYSTONE_SDK_STD_DIR}/lib/libkeystone-verifier-non-riscv.a)
+set(KEYSTONE_SDK_NON_RISCV_DIR $ENV{KEYSTONE_SDK_NON_RISCV_DIR})
+set(KEYSTONE_LIB_VERIFIER_NON_RISCV ${KEYSTONE_SDK_NON_RISCV_DIR}/lib/libkeystone-verifier-non-riscv.a)
 
 # find program "makeself"
 find_program(MAKESELF makeself)
@@ -56,7 +56,7 @@ find_package(Threads REQUIRED)
 # Your project setup, including include directories and target_link_libraries
 # export include directory
 include_directories(include
-  ${LIBSODIUM_CLIENT_DIR}/include
+  #${LIBSODIUM_CLIENT_DIR}/include
   ${KEYSTONE_SDK_DIR}/include
   ${KEYSTONE_SDK_DIR}/include/host
   ${KEYSTONE_SDK_DIR}/include/edge
@@ -64,15 +64,15 @@ include_directories(include
 )
 
 # trusted client
-add_subdirectory(trusted_client)
+add_subdirectory(verifier)
 
 # enclave
 add_subdirectory(server_eapp)
-set(host_bin demo-server.riscv)
+set(host_bin agent.riscv)
 set(host_src enclave-host.cpp edge_wrapper.cpp)
 set(eyrie_plugins "freemem")
-set(package_name "demo-server.ke")
-set(package_script "./demo-server.riscv")
+set(package_name "agent.ke")
+set(package_script "./agent.riscv")
 
 add_executable(${host_bin} ${host_src})
 target_link_libraries(${host_bin} ${KEYSTONE_LIB_HOST} ${KEYSTONE_LIB_EDGE} ${KEYSTONE_LIB_VERIFIER} Threads::Threads)

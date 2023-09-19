@@ -57,3 +57,23 @@ so that the server counts the number of words in the message and reply.
 It is expected that the client will reject the attestation report from
 the host if you haven't regenerated the expected hashes for the SM and
 eapp. Pass the `--ignore-valid` flag to the client for testing.
+
+## Generate SM and Enclave reference measurements
+
+In order to perform the Remote Attestation, the boot-time SM and Enclave hashes are needed.
+Hence, if any modification is done in the SM (or EAPP) code, it is needed to recompute these
+reference values. To do that, perform the subsequent steps:
+
+1. Open a terminal and navigate to the *keystone/build/* folder
+    1. Launch QEMU with the *./scripts/run-qemu.sh* script
+    2. Login using *root* as username and *sifive* as password
+    3. Insert the command *insmod keystone-driver.ko*
+    4. Insert the command *cd keystone-demo*
+    5. Insert the command *./agent.riscv*
+2. Open another terminal. Navigate to *keystone-demo* folder and launch the 
+
+    ***DEMO_DIR=. ./scripts/get_attestation.sh ./include/***
+
+    command: it launches a script that will execute (and automatically close) the verifier application
+3. Once the previous point terminates, and always in the *keystone-demo* folder, run the *./compile-demo.sh* script to build
+    again the keystone-demo project
