@@ -40,7 +40,9 @@ cmake ..
 make
 make packagedemo
 cp demo-server.ke demo-server.riscv ./trusted_client/trusted_client.riscv server_eapp/server_eapp.eapp_riscv eyrie-rt ../../keystone/build/overlay/root/keystone-demo/
-cd ../../keystone/build 
+cd trusted_client
+mkdir -p db
+cd ../../../keystone/build 
 make image
 
 # TODO: COPY EXPECTED HASH INTO REFERENCE VALUE (BOTH SM AND ENCLAVE)

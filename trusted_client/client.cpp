@@ -37,8 +37,23 @@ byte local_buffer[BUFFERLEN], local_buffer_agent[BUFFERLEN];
 /*********************** NEW FUNCTIONS **************************/
 /****************************************************************/
 
+void print_menu() {
+  std::cout << std::endl;
+  std::cout << "[VER] ==============================================================================" << std::endl;
+  std::cout << "[VER] Available operations:" << std::endl;
+  std::cout << "[VER] 1: Request Certificate Chain" << std::endl;
+  std::cout << "[VER] 2: Perform Runtime Attestation" << std::endl;
+  std::cout << "[VER] q: Quit" << std::endl;
+  std::cout << std::endl;
+  std::cout << "[VER] Select the operation: ";
+
+  memset(local_buffer_agent, 0, BUFFERLEN);
+  memset(local_buffer, 0, BUFFERLEN);
+  fflush(stdin);
+  fflush(stdout);
+}
+
 void send_agent_buffer(byte* buffer, size_t len){
-  //write(fd_sock_agent, &len, sizeof(size_t));
   write(fd_sock_agent, buffer, len);  
 }
 
@@ -84,7 +99,10 @@ void recv_cert_chain_on_buffer_agent(
 }
 
 void connect_to_agent_socket() {
-  // Connect the verifier to the agent socket
+  // Wait a couple of seconds in order to let the verifer connect to the enclave succesfully
+  std::this_thread::sleep_for(std::chrono::seconds(2));
+
+  // Now connect the verifier to the agent socket
   fd_sock_agent = socket(AF_INET, SOCK_STREAM, 0);
   if (fd_sock_agent < 0){
     std::cout << "[VER] No socket\n" << std::endl;
@@ -196,6 +214,14 @@ void perform_runtime_attestation() {
     std::cout << "[VER] Verification failed!" << std::endl;
 }
 
+void send_agent_exit_message() {
+  memset(local_buffer_agent, 0, BUFFERLEN);
+  local_buffer_agent[0] = 'q';
+  local_buffer_agent[1] = '\0';
+
+  send_agent_buffer(local_buffer_agent, 2);
+}
+
 /****************************************************************/
 /****************************************************************/
 /****************************************************************/
@@ -283,31 +309,39 @@ int main(int argc, char *argv[])
 
   /* Send/recv messages */
   for(;;){
-    printf("\n[VER] Select the operation [1: Request Certificate Chain, 2: Perform Runtime Attestation, q: Quit]:\n> ");
-    memset(local_buffer_agent, 0, BUFFERLEN);
-    memset(local_buffer, 0, BUFFERLEN);
-    fflush(stdin);
-    fflush(stdout);
+    print_menu();
     fgets((char*)local_buffer_agent, BUFFERLEN-1, stdin);
-    printf("\n");
+    std::cout << std::endl;
 
-    /* Handle quit */
-    if(local_buffer_agent[0] == 'q' && (local_buffer_agent[1] == '\0' || local_buffer_agent[1] == '\n')) {
-      std::cout << "[VER] Disconnecting from the agent socket..." << std::endl;
-      close_database(db);
-      close(fd_sock_agent);
+    if (!(local_buffer_agent[1] == '\0' || local_buffer_agent[1] == '\n')) {
+      std::cout << "[VER] Wrong command format: it must be 1 character identifier" << std::endl;
+      continue;
+    }
 
-      std::cout << "[VER] Disconnecting from the TA socket..." << std::endl;
-      send_exit_message();
-      close(fd_sock);
+    switch (local_buffer_agent[0]) {
+      case '1':
+        request_cert_chain();
+        break;
+      case '2':
+        perform_runtime_attestation();
+        break;
+      case 'q':
+        std::cout << "[VER] Disconnecting from the agent socket..." << std::endl;
+        send_agent_exit_message();
+        close_database(db);
+        close(fd_sock_agent);
 
-      exit(0);
-    } else if (local_buffer_agent[0] == '1' && (local_buffer_agent[1] == '\0' || local_buffer_agent[1] == '\n')) {
-      request_cert_chain();
-    } else if (local_buffer_agent[0] == '2' && (local_buffer_agent[1] == '\0' || local_buffer_agent[1] == '\n')) {
-      perform_runtime_attestation();
-    } else
-      std::cout << "[VER] Invalid command inserted!" << std::endl;
+        std::cout << "[VER] Disconnecting from the TA socket..." << std::endl;
+        send_exit_message();
+        close(fd_sock);
+
+        exit(0);
+        break;    
+      default:
+        std::cout << "[VER] Invalid command inserted!" << std::endl;
+        break;
+    }      
   }
+
   return 0;
 }

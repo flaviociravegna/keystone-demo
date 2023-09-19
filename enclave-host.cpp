@@ -165,6 +165,7 @@ int wait_for_agent_message(Keystone::Enclave *enclave, bool *exit) {
 
   // Send the certificates
   if (buffer[0] == '1' && buffer[1] == '\0') {
+    std::cout << "[Agent] Received a Certificate Chain request from the Verifier" << std::endl;
     unsigned char cert_sm[512];
     unsigned char cert_root[512];
     unsigned char cert_man[512];
@@ -174,6 +175,7 @@ int wait_for_agent_message(Keystone::Enclave *enclave, bool *exit) {
     enclave->requestCertChain(cert_sm, cert_root, cert_man, cert_lak, lengths);
     send_cert_chain_on_buffer_agent(cert_sm, cert_root, cert_man, cert_lak, lengths[0], lengths[1], lengths[2], lengths[3]);
   } else if (buffer[0] == '2' && buffer[1] == '\0') {
+    std::cout << "[Agent] Received a Run-time Remote Attestation request from the Verifier" << std::endl;
     unsigned char nonce[32];
     unsigned char buffer_for_report[1024];
     int report_size;
@@ -181,8 +183,10 @@ int wait_for_agent_message(Keystone::Enclave *enclave, bool *exit) {
 
     enclave->requestRuntimeAttestation(nonce, buffer_for_report, &report_size);
     send_buffer_agent((byte *)buffer_for_report, report_size);
-  } else if (buffer[0] == 'q' && buffer[1] == '\0')
+  } else if (buffer[0] == 'q' && buffer[1] == '\0') {
+    std::cout << "[Agent] The Verifier signaled to quit" << std::endl;
     *exit = true;
+  }
 
   free(buffer);
   return 1;
@@ -223,7 +227,7 @@ void init_network_agent() {
     exit(-1);
   }
 
-  std::cout << "[Agent] Agent connected on port " << PORTNUM_AGENT << std::endl;
+  std::cout << "[Agent] Agent listening on port " << PORTNUM_AGENT << std::endl;
 }
 
 void init_network_wait(){

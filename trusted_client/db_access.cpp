@@ -1,5 +1,6 @@
 #include <iostream>
 #include <random>
+#include <fstream>
 #include "db_access.h"
 
 /* From the SQLITE documentation: If the path begins with a '/' character, then it is interpreted as an absolute path.
@@ -91,7 +92,7 @@ sqlite3* open_database() {
         std::cerr << "[VER] Can't open database: " << sqlite3_errmsg(db) << std::endl;
         return nullptr;
     } else 
-        std::cout << "[VER] DB opened" << std::endl;
+        std::cout << "[VER] DB opened: " << std::string(URI) << std::endl;
     
     return db;
 }
@@ -113,8 +114,22 @@ bool execute_query(sqlite3* db, const char* query) {
     return true;
 }
 
+void clear_database(sqlite3* db) {
+    sqlite3_db_config(db, SQLITE_DBCONFIG_RESET_DATABASE, 1, 0);
+    sqlite3_exec(db, "VACUUM", 0, 0, 0);
+    sqlite3_db_config(db, SQLITE_DBCONFIG_RESET_DATABASE, 0, 0);
+    /*
+    std::ifstream file(db_path);
+    if (file.good())    // If the db already exists
+        if (std::remove(db_path.c_str()) != 0)
+            std::cerr << "[VER] Error deleting database file" << std::endl;
+        else
+            std::cout << "Database file deleted succesfully" << std::endl;*/
+}
+
 void init_db(sqlite3* db, std::string agent_ip, int agent_port, std::string sm_hash, std::string enclave_hash_boot) {
     // Create EAPPS table
+    clear_database(db);
     std::string sql_create = "CREATE TABLE IF NOT EXISTS EAPPS (UUID TEXT PRIMARY KEY, AgentIP TEXT NOT NULL, AgentPort INTEGER NOT NULL, HashSM TEXT NOT NULL, HashEappBoot TEXT NOT NULL, HashEappRt TEXT);";
     execute_query(db, sql_create.c_str());
     
