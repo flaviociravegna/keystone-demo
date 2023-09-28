@@ -9,11 +9,11 @@
 #include <unistd.h>
 #include <random>
 
-#include "verifier.h"
-#include "client.h"
-#include "db_access.h"
+#include "./include/verifier.h"
+#include "./include/client.h"
+#include "./include/db_access.h"
 extern "C" {
-    #include "cert_verifier.h"
+    #include "./include/cert_verifier.h"
 }
 
 #include <vector>
@@ -33,24 +33,39 @@ struct hostent *server;
 #define BUFFERLEN 4096
 byte local_buffer[BUFFERLEN], local_buffer_agent[BUFFERLEN];
 
+
 /****************************************************************/
 /*********************** NEW FUNCTIONS **************************/
 /****************************************************************/
 
 void print_menu() {
   std::cout << std::endl;
-  std::cout << "[VER] ==============================================================================" << std::endl;
-  std::cout << "[VER] Available operations:" << std::endl;
-  std::cout << "[VER] 1: Request Certificate Chain" << std::endl;
-  std::cout << "[VER] 2: Perform Runtime Attestation" << std::endl;
-  std::cout << "[VER] q: Quit" << std::endl;
-  std::cout << std::endl;
-  std::cout << "[VER] Select the operation: ";
+  std::cout << "===================================================================================\n";
+  std::cout << "-----------------------------------------------------------------------------------\n";
+  std::cout << "[VER] Available operations:" << "\n";
+  std::cout << "[VER] 1: Request Certificate Chain" << "\n";
+  std::cout << "[VER] 2: Perform Runtime Attestation" << "\n";
+  std::cout << "[VER] q: Quit" << "\n";
+  std::cout << "-----------------------------------------------------------------------------------" << std::endl;
+  std::cout << "[VER] Enter your selection: ";
 
   memset(local_buffer_agent, 0, BUFFERLEN);
   memset(local_buffer, 0, BUFFERLEN);
   fflush(stdin);
   fflush(stdout);
+}
+
+void send_exit_message(){
+  size_t pt_size;
+  byte* bytes_msg = get_exit_message(&pt_size);
+  send_buffer(bytes_msg, pt_size);
+  free(bytes_msg);
+}
+
+void verifier_exit(){
+  printf("[VER] Verifier exiting. Shutdown...\n");
+  send_exit_message();
+  exit(0);
 }
 
 void send_agent_buffer(byte* buffer, size_t len){
@@ -98,6 +113,14 @@ void recv_cert_chain_on_buffer_agent(
   read(fd_sock_agent, (byte*) lak_cert, *lak_cert_len);
 }
 
+void send_agent_exit_message() {
+  memset(local_buffer_agent, 0, BUFFERLEN);
+  local_buffer_agent[0] = 'q';
+  local_buffer_agent[1] = '\0';
+
+  send_agent_buffer(local_buffer_agent, 2);
+}
+
 void connect_to_agent_socket() {
   // Wait a couple of seconds in order to let the verifer connect to the enclave succesfully
   std::this_thread::sleep_for(std::chrono::seconds(2));
@@ -119,6 +142,29 @@ void connect_to_agent_socket() {
   }
 
   std::cout << "[VER] Connected to the agent socket!" << std::endl;
+}
+
+void connect_to_enclave_socket(char *argv[]) {
+  // Start the enclave...  
+  std::cout << "[VER] Connecting to the enclave..." << std::endl;
+  fd_sock = socket(AF_INET, SOCK_STREAM, 0);
+  if(fd_sock < 0){
+    printf("[VER] No socket\n");
+    exit(-1);
+  }
+  server = gethostbyname(argv[1]);
+  if(server == NULL) {
+    printf("[VER] Can't get host\n");
+    exit(-1);
+  }
+  server_addr.sin_family = AF_INET;
+  memcpy(&server_addr.sin_addr.s_addr,server->h_addr,server->h_length);
+  server_addr.sin_port = htons(PORTNUM);
+  if(connect(fd_sock, (struct sockaddr *)&server_addr, sizeof(server_addr)) < 0){
+    printf("[VER] Can't connect\n");
+    exit(-1);
+  }
+  printf("[VER] Connected to enclave host!\n");
 }
 
 std::array<unsigned char, NONCE_LEN> generate_nonce() {
@@ -187,10 +233,20 @@ void perform_runtime_attestation() {
   local_buffer_agent[1] = '\0';
   std::copy(nonce.begin(), nonce.end(), local_buffer_agent + 2);
 
+  #if RUNTIME_ATTESTATION_PERF_TEST
+  auto start = std::chrono::high_resolution_clock::now();
+  #endif
+
   // Send the request with the nonce
   size_t len;
   send_agent_buffer(local_buffer_agent, 34);
   byte* buffer = recv_buffer_agent(&len);
+
+  #if RUNTIME_ATTESTATION_PERF_TEST
+  auto end = std::chrono::high_resolution_clock::now();
+  std::chrono::duration<double> duration = end - start;
+  std::cout << "[VER] Run-time attestation request elapsed time: " << duration.count() * 1000.0 << " ms" << std::endl;
+  #endif
 
   std::string sm_ref_value = get_eapp_sm_hash(db, uuid);
   std::string encl_runtime_ref_value = get_eapp_rt_hash(db, uuid);
@@ -206,20 +262,24 @@ void perform_runtime_attestation() {
   for (unsigned char c : nonce)
     nonce_as_string += char_to_hex_str(c);
 
+  #if RUNTIME_ATTESTATION_PERF_TEST
+  start = std::chrono::high_resolution_clock::now();
+  #endif
+
   if (verifier_verify_runtime_report(
         buffer, encl_runtime_ref_value, sm_ref_value,
         lak_pub, nonce_as_string))
-    std::cout << "[VER] Verification succesful!" << std::endl;
+    std::cout << "[VER] " << "\033[1;32m" << "Verification succesful" << "\033[0m" << "!" << std::endl;
   else
-    std::cout << "[VER] Verification failed!" << std::endl;
-}
+    std::cout << "[VER] " << "\033[1;31m" << "Verification failed" << "\033[0m" << "!" << std::endl;
 
-void send_agent_exit_message() {
-  memset(local_buffer_agent, 0, BUFFERLEN);
-  local_buffer_agent[0] = 'q';
-  local_buffer_agent[1] = '\0';
+  #if RUNTIME_ATTESTATION_PERF_TEST
+  end = std::chrono::high_resolution_clock::now();
+  duration = end - start;
+  std::cout << "[VER] Run-time report verification elapsed time: " << duration.count() * 1000.0 << " ms" << std::endl;
+  #endif
 
-  send_agent_buffer(local_buffer_agent, 2);
+  free(buffer);
 }
 
 /****************************************************************/
@@ -256,6 +316,27 @@ byte* recv_buffer(size_t* len){
   return reply;
 }
 
+void recv_boot_time_report(int ignore_valid) {
+  std::cout << "[VER] Requesting boot-time attestation report..." << std::endl;
+  #if RUNTIME_ATTESTATION_PERF_TEST
+  auto start = std::chrono::high_resolution_clock::now();
+  #endif
+
+  size_t report_size;
+  byte* report_buffer = recv_buffer(&report_size);
+
+  #if RUNTIME_ATTESTATION_PERF_TEST
+  auto end = std::chrono::high_resolution_clock::now();
+  std::chrono::duration<double> duration = end - start;
+  std::cout << "[VER] Boot-time attestation request elapsed time: " << duration.count() * 1000.0 << " ms" << std::endl;
+  #endif
+
+  bool res_boot = verifier_verify_boot_report(report_buffer, ignore_valid);
+  free(report_buffer);
+  if (!res_boot)
+    verifier_exit();
+}
+
 /****************************************************************/
 /****************************************************************/
 /****************************************************************/
@@ -274,39 +355,10 @@ int main(int argc, char *argv[])
     }
   }
 
-  // Start the enclave...  
-  std::cout << "[VER] Connecting to the enclave..." << std::endl;
-  fd_sock = socket(AF_INET, SOCK_STREAM, 0);
-  if(fd_sock < 0){
-    printf("[VER] No socket\n");
-    exit(-1);
-  }
-  server = gethostbyname(argv[1]);
-  if(server == NULL) {
-    printf("[VER] Can't get host\n");
-    exit(-1);
-  }
-  server_addr.sin_family = AF_INET;
-  memcpy(&server_addr.sin_addr.s_addr,server->h_addr,server->h_length);
-  server_addr.sin_port = htons(PORTNUM);
-  if(connect(fd_sock, (struct sockaddr *)&server_addr, sizeof(server_addr)) < 0){
-    printf("[VER] Can't connect\n");
-    exit(-1);
-  }
-  printf("[VER] Connected to enclave host!\n");
-  
+  connect_to_enclave_socket(argv);  
   connect_to_agent_socket();
 
-  /************************* Receive boot-time report *************************/
-
-  printf("[VER] Requesting boot-time attestation report...\n");
-  size_t report_size;
-  byte* report_buffer = recv_buffer(&report_size);
-  verifier_get_boot_report(report_buffer, ignore_valid);
-  free(report_buffer);
-
-  /****************************************************************************/
-  /****************************************************************************/
+  recv_boot_time_report(ignore_valid);
 
   db = open_database();
   init_db(db, "127.0.0.1", PORTNUM_AGENT, get_sm_hash_as_string(), get_enclave_boot_hash_as_string());
@@ -334,6 +386,7 @@ int main(int argc, char *argv[])
         send_agent_exit_message();
         close_database(db);
         close(fd_sock_agent);
+        std::this_thread::sleep_for(std::chrono::seconds(2));
 
         std::cout << "[VER] Disconnecting from the TA socket..." << std::endl;
         send_exit_message();

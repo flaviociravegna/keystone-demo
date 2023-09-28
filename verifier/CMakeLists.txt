@@ -36,12 +36,12 @@ add_executable(verifier_unix
 target_link_libraries(verifier_unix
   ${KEYSTONE_LIB_VERIFIER_NON_RISCV}
   ${CMAKE_DL_LIBS}
-  ${MBEDTLS_LIB_TLS_HOST} ${MBEDTLS_LIB_X509_HOST} ${MBEDTLS_LIB_CRYPTO_HOST}
+  ${MBEDTLS_LIB_TLS_HOST_STD} ${MBEDTLS_LIB_X509_HOST_STD} ${MBEDTLS_LIB_CRYPTO_HOST_STD}
   Threads::Threads
 )
 
 target_include_directories(verifier_unix
-  PRIVATE ${MBEDTLS_DIR_HOST}/include
+  PRIVATE ${MBEDTLS_DIR_HOST_NON_RISCV}/include
   PRIVATE ${my_mbedtls_dir}/include
   PRIVATE ${my_mbedtls_dir}
   PRIVATE ${sha3_dir}  

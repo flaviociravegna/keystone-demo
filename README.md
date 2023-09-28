@@ -74,6 +74,6 @@ reference values. To do that, perform the subsequent steps:
 
     ***DEMO_DIR=. ./scripts/get_attestation.sh ./include/***
 
-    command: it launches a script that will execute (and automatically close) the verifier application
-3. Once the previous point terminates, and always in the *keystone-demo* folder, run the *./compile-demo.sh* script to build
-    again the keystone-demo project
+    command: it launches a script that will execute (and automatically close) the verifier application. As final step, it will copy the digests into the expected destination folder
+3. In the *keystone-demo* folder, run again the *./compile-demo.sh* script to build
+    the correct version of the keystone-demo project. At this point, the framework should run as expected

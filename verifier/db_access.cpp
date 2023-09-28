@@ -1,7 +1,7 @@
 #include <iostream>
 #include <random>
 #include <fstream>
-#include "db_access.h"
+#include "./include/db_access.h"
 
 /* From the SQLITE documentation: If the path begins with a '/' character, then it is interpreted as an absolute path.
 If the path does not begin with a '/' then the path is interpreted as a relative path */
@@ -118,13 +118,6 @@ void clear_database(sqlite3* db) {
     sqlite3_db_config(db, SQLITE_DBCONFIG_RESET_DATABASE, 1, 0);
     sqlite3_exec(db, "VACUUM", 0, 0, 0);
     sqlite3_db_config(db, SQLITE_DBCONFIG_RESET_DATABASE, 0, 0);
-    /*
-    std::ifstream file(db_path);
-    if (file.good())    // If the db already exists
-        if (std::remove(db_path.c_str()) != 0)
-            std::cerr << "[VER] Error deleting database file" << std::endl;
-        else
-            std::cout << "Database file deleted succesfully" << std::endl;*/
 }
 
 void init_db(sqlite3* db, std::string agent_ip, int agent_port, std::string sm_hash, std::string enclave_hash_boot) {
@@ -209,16 +202,11 @@ bool save_trusted_lak_for_eapp(sqlite3 *db, std::string uuid, std::string lak) {
         return false;
     }
 
-    //std::cout << "[VER] UUID: " << uuid << std::endl;
-    //std::cout << "[VER] LAK: " << lak << std::endl;
-
     std::string sql_insert = "INSERT INTO LAKS (UUID, LAK_PUB) VALUES ('" + uuid + "', '" + lak + "');";
-    //std::cout << "[VER] Local Attestation Key SQL string: " << sql_insert << std::endl;
     return execute_query(db, sql_insert.c_str());
 }
 
 bool save_eapp_rt_hash(sqlite3 *db, std::string uuid, std::string rt_hash) {
     std::string sql_insert = "UPDATE EAPPS SET HashEappRt='" + rt_hash + "' WHERE UUID='" + uuid + "';";
-    //std::cout << "[VER] Runtime Hash SQL string: " << sql_insert << std::endl;
     return execute_query(db, sql_insert.c_str());
 }

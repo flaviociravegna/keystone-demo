@@ -2,30 +2,12 @@
 #include <sstream>
 #include <iomanip> // For std::hex
 
-#include "verifier.h"
-#include "client.h"
 #include "test_dev_key.h"
-#include "enclave_expected_hash.h"
+#include "./include/verifier.h"
 #include "sm_expected_hash.h"
+#include "enclave_expected_hash.h"
 
-int double_fault;
-int channel_ready;
-
-
-void verifier_exit(){
-  if(double_fault || !channel_ready){
-    printf("DC: Fatal error, exiting. Remote not cleanly shut down.\n");
-    exit(-1);
-  }
-  else{
-    double_fault = 1;
-    printf("[VER] Exiting. Attempting clean remote shutdown.\n");
-    send_exit_message();
-    exit(0);
-  }
-}
-
-void verifier_get_boot_report(void* buffer, int ignore_valid){
+bool verifier_verify_boot_report(void* buffer, int ignore_valid){
 
   Report report;
   report.fromBytes((unsigned char*)buffer);
@@ -45,53 +27,25 @@ void verifier_get_boot_report(void* buffer, int ignore_valid){
       printf("[VER] Ignore Validation was set, CONTINUING WITH INVALID REPORT\n");
     }
     else{
-      verifier_exit();
+      return false;
     }
   }
+  
   if(report.getDataSize() !=  32){
     printf("[VER] Bad report data sec size\n");
-    verifier_exit();
+    return false;
   }
-  
-  channel_ready = 1;
+
+  return true;
 }
 
-void send_exit_message(){
-
-  size_t pt_size;
-  calc_message_t* pt_msg = generate_exit_message(&pt_size);
-  byte* bytes_msg = (byte*)malloc(pt_size);
-  memcpy(bytes_msg, pt_msg, pt_size);
-  send_buffer(bytes_msg, pt_size);
-
+byte* get_exit_message(size_t *pt_size) {
+  calc_message_t* pt_msg = generate_exit_message(pt_size);
+  byte* bytes_msg = (byte*)malloc(*pt_size);
+  memcpy(bytes_msg, pt_msg, *pt_size);
   free(pt_msg);
-  free(bytes_msg);
+  return bytes_msg;
 }
-
-void send_wc_message(char* buffer){
-
-  size_t pt_size;
-  calc_message_t* pt_msg = generate_wc_message(buffer, strlen(buffer)+1, &pt_size);
-  byte* bytes_msg = (byte*)malloc(pt_size);
-  memcpy(bytes_msg, pt_msg, pt_size);
-  send_buffer(bytes_msg, pt_size);
-
-  free(pt_msg);
-  free(bytes_msg);
-
-}
-
-calc_message_t* generate_wc_message(char* buffer, size_t buffer_len, size_t* finalsize){
-  calc_message_t* message_buffer = (calc_message_t*)malloc(buffer_len+sizeof(calc_message_t));
-
-  message_buffer->msg_type = CALC_MSG_WORDCOUNT;
-  message_buffer->len = buffer_len;
-  memcpy(message_buffer->msg, buffer, buffer_len);
-
-  *finalsize = buffer_len + sizeof(calc_message_t);
-
-  return message_buffer;
-};
 
 calc_message_t* generate_exit_message(size_t* finalsize){
 

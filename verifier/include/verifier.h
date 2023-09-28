@@ -8,16 +8,12 @@
 #include <iostream>
 #include <fstream>
 #include "report.h"
-//#include "verifier.h"
-
+#include "tests.h"
 
 typedef unsigned char byte;
 
-void verifier_exit();
-void verifier_get_boot_report(void* buffer, int ignore_valid);
-void send_exit_message();
-void send_wc_message(char* buffer);
-calc_message_t* generate_wc_message(char* buffer, size_t buffer_len, size_t* finalsize);
+bool verifier_verify_boot_report(void* buffer, int ignore_valid);
+byte* get_exit_message(size_t *pt_size);
 calc_message_t* generate_exit_message(size_t* finalsize);
 
 std::string char_to_hex_str(unsigned char c);

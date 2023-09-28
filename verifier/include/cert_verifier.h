@@ -1,4 +1,5 @@
 #include <stdbool.h>
+#include "tests.h"
 
 #define LAK_PUB_LEN 32
 #define MAX_CERT_LEN 512

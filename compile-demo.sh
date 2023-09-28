@@ -24,11 +24,9 @@ export KEYSTONE_SDK_NON_RISCV_DIR=$(pwd)/../../keystone/sdk_std/build64
 cmake ..
 make
 make packagedemo
-cp agent.ke agent.riscv ./verifier/verifier.riscv server_eapp/server_eapp.eapp_riscv eyrie-rt ../../keystone/build/overlay/root/keystone-demo/
+cp agent.ke agent.riscv ./verifier/verifier_unix server_eapp/server_eapp.eapp_riscv eyrie-rt ../../keystone/build/overlay/root/keystone-demo/
 cd verifier
 mkdir -p db
 cd ../../../keystone/build 
 make image
-
-# TODO: COPY EXPECTED HASH INTO REFERENCE VALUE (BOTH SM AND ENCLAVE)
 

@@ -18,6 +18,11 @@ genhash () {
     xxd -i $1_expected_hash > $1_expected_hash.h
 }
 
+genhash_ref () {
+    echo $2 | xxd -r -p - > $1_reference_value
+    xxd -i $1_reference_value > $1_reference_value.h
+}
+
 extracthash () {
     # Generalize me!
     expect_commands='
@@ -45,3 +50,11 @@ if [ "${EAPP_HASH}xxx" = "xxx" ]; then
 fi
 genhash sm $SM_HASH
 genhash enclave $EAPP_HASH
+genhash_ref sm $SM_HASH
+genhash_ref enclave $EAPP_HASH
+
+# Copy generated reference files into MbedTLS library
+cd ..
+cp -f include/enclave_reference_value.h include/sm_reference_value.h my_mbedtls_stdlib/include/
+rm -f include/enclave_reference_value.h include/enclave_reference_value include/sm_reference_value.h include/sm_reference_value
+echo "Generated hashes copied into \"my_mbedtls_stdlib/include/\" folder"

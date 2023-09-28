@@ -30,7 +30,6 @@ int fd_clientsock;
 int fd_clientsock_agent;
 #define BUFFERLEN 4096
 byte local_buffer[BUFFERLEN], local_buffer_agent[BUFFERLEN];
-std::string IP_broadcast_qemu = "192.168.100.2";
 
 void send_buffer(byte* buffer, size_t len){
   write(fd_clientsock, &len, sizeof(size_t));
@@ -110,18 +109,18 @@ void print_hex_data_2(unsigned char* data, size_t len){
     if(i > 0 && (i + 1) % 32 == 0)
 	      str += "\n";
   }
-  printf("%s\n\n",str.c_str());
+  printf("%s\n",str.c_str());
 }
 
 unsigned long print_buffer(char* str){
   if( PRINT_MESSAGE_BUFFERS )
-    printf("[SE] %s",str);
+    printf("[EAPP] %s",str);
   
   return strlen(str);
 }
 
 void print_value(unsigned long val){
-  if( PRINT_MESSAGE_BUFFERS ) printf("[SE] value: %u\n",val);
+  if( PRINT_MESSAGE_BUFFERS ) printf("[EAPP] value: %u\n",val);
   return;
 }
 
@@ -148,7 +147,7 @@ encl_message_t wait_for_message(){
   void* buffer = recv_buffer(&len);
 
   if( PRINT_MESSAGE_BUFFERS ) {
-    printf("[EH] Got an encrypted message:\n");
+    printf("[Agent] Got a message:\n");
     print_hex_data((unsigned char*)buffer, len);
   }
 
@@ -192,8 +191,7 @@ int wait_for_agent_message(Keystone::Enclave *enclave, bool *exit) {
   return 1;
 }
 
-void send_report(void* buffer, size_t len)
-{
+void send_report(void* buffer, size_t len) {
   send_buffer((byte*)buffer, len);
 }
 
@@ -291,8 +289,7 @@ int main(int argc, char** argv)
   std::thread thread_enclave(run_enclave, &enclave);
   std::thread thread_agent(run_agent, &enclave);
 
-  thread_enclave.join();
   thread_agent.join();
-
+  thread_enclave.join();
   return 0;
 }

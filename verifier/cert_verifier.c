@@ -1,7 +1,8 @@
 #include <stdio.h>
-#include "cert_verifier.h"
+#include "./include/cert_verifier.h"
 #include "custom_functions.h"
 
+/*
 static const unsigned char ref_cert_man[] = {
   0x30, 0x81, 0xfb, 0x30, 0x81, 0xac, 0xa0, 0x03, 0x02, 0x01, 0x02, 0x02, 0x04, 0x00, 0xff, 0xff, 
   0xff, 0x30, 0x07, 0x06, 0x03, 0x2b, 0x65, 0x70, 0x05, 0x00, 0x30, 0x17, 0x31, 0x15, 0x30, 0x13, 
@@ -22,6 +23,7 @@ static const unsigned char ref_cert_man[] = {
 };
 
 static const int ref_cert_man_len = 254;
+*/
 
 bool verify_cert_chain(
         unsigned char *sm_cert_par,
@@ -37,7 +39,7 @@ bool verify_cert_chain(
   custom_x509_crt trusted_certs, cert_chain;
 
   custom_x509_crt_init(&trusted_certs);
-  int ret = custom_x509_crt_parse_der(&trusted_certs, ref_cert_man, ref_cert_man_len);
+  int ret = custom_x509_crt_parse_der(&trusted_certs, man_cert_par, man_cert_len);
 
   #if PRINT_STRUCTS
   print_custom_x509_cert("Trusted Certificate", trusted_certs);
@@ -45,22 +47,41 @@ bool verify_cert_chain(
 
   custom_x509_crt_init(&cert_chain);
 
+   #if RUNTIME_ATTESTATION_FUNC_TEST_CERT_FAIL_PARSING
+  // Flip the first byte LAK certificate buffer to test the DER parsing process
+  lak_cert_par[0] ^= 0xFF;
+  #endif
+
   // Parsing leaf certificate
   ret = custom_x509_crt_parse_der(&cert_chain, lak_cert_par, lak_cert_len);
-  if (ret != 0) printf("[VER] Error parsing LAK certificate\n");
+  if (ret != 0) {
+    printf("[VER] Error parsing LAK certificate\n");
+    return false;
+  }
+
+  #if RUNTIME_ATTESTATION_FUNC_TEST_CERT_FAIL_VERIF
+  // Flip the TCI's first bit (included in the LAK certificate) to test the X509 verification
+  cert_chain.hash.p[0] ^= 0x80;
+  #endif
 
   // Parsing SM certificate
   ret = custom_x509_crt_parse_der(&cert_chain, sm_cert_par, sm_cert_len);
-  if (ret != 0) printf("[VER] Error parsing SM certificate. Error code: %d\n", ret);
+  if (ret != 0) {
+    printf("[VER] Error parsing SM certificate. Error code: %d\n", ret);
+    return false;
+  }
 
   // Parsing intermediate certificate
   ret = custom_x509_crt_parse_der(&cert_chain, root_cert_par, root_cert_len);
-  if (ret != 0) printf("[VER] Error parsing ROOT certificate\n");
+  if (ret != 0) {
+    printf("[VER] Error parsing ROOT certificate\n");
+    return false;
+  }
 
   printf("[VER] Verifing Chain of Certificates... ");
   ret = custom_x509_crt_verify(&cert_chain, &trusted_certs, NULL, NULL, &flags, NULL, NULL);
   if (ret == 0) printf("Success!\n");
-  else printf("[VER] Verification failed! Error code: %d, flags: %d\n", ret, flags);
+  else printf("Verification failed! Error code: %d, flags: %d\n", ret, flags);
 
   return (ret == 0) ? true : false;
 }

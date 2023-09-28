@@ -12,16 +12,6 @@ if (NOT DEFINED ENV{KEYSTONE_SDK_NON_RISCV_DIR})
   message(FATAL_ERROR "Please set KEYSTONE_SDK_NON_RISCV_DIR environment variable to an installed SDK path")
 endif()
 
-#[[if (NOT DEFINED ENV{LIBSODIUM_CLIENT_DIR})
-  message(FATAL_ERROR "Please set LIBSODIUM_CLIENT_DIR")
-endif()
-set(LIBSODIUM_CLIENT_DIR $ENV{LIBSODIUM_CLIENT_DIR})
-
-if (NOT DEFINED ENV{LIBSODIUM_DIR})
-  message(FATAL_ERROR "Please set LIBSODIUM_DIR")
-endif()
-set(LIBSODIUM_DIR $ENV{LIBSODIUM_DIR})]]
-
 if (NOT DEFINED ENV{MBEDTLS_DIR_HOST})
   message(FATAL_ERROR "Please set MBEDTLS_DIR_HOST")
 endif()
@@ -56,7 +46,6 @@ find_package(Threads REQUIRED)
 # Your project setup, including include directories and target_link_libraries
 # export include directory
 include_directories(include
-  #${LIBSODIUM_CLIENT_DIR}/include
   ${KEYSTONE_SDK_DIR}/include
   ${KEYSTONE_SDK_DIR}/include/host
   ${KEYSTONE_SDK_DIR}/include/edge
@@ -68,8 +57,10 @@ add_subdirectory(verifier)
 
 # enclave
 add_subdirectory(server_eapp)
+
+# agent
 set(host_bin agent.riscv)
-set(host_src enclave-host.cpp edge_wrapper.cpp)
+set(host_src agent.cpp edge_wrapper.cpp)
 set(eyrie_plugins "freemem")
 set(package_name "agent.ke")
 set(package_script "./agent.riscv")
