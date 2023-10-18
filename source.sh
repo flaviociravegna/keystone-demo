@@ -1,4 +1,4 @@
 #!/bin/bash
 
-export LIBSODIUM_CLIENT_DIR=$(pwd)/libsodium_builds/libsodium_client/src/libsodium
-export LIBSODIUM_DIR=$(pwd)/libsodium_builds/libsodium_server/src/libsodium
+export MBEDTLS_DIR_HOST=$(pwd)/mbedtls_host
+export MBEDTLS_DIR_HOST_NON_RISCV=$(pwd)/mbedtls_host_non_riscv

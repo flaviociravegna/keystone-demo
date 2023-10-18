@@ -39,15 +39,18 @@ set -e
 # Copy the expected hash over
 echo "Copying expected sm hash from riscv-pk, this may be incorrect!"
 cp $SM_HASH include/
+echo "SM hash copied succesfully"
 
 # Build the demo
-mkdir -p build
-cd build
-cmake ..
-make
-make packagedemo
+# export MBEDTLS_DIR_HOST=$(pwd)/mbedtls_host
+# export MBEDTLS_DIR_HOST_NON_RISCV=$(pwd)/mbedtls_host_non_riscv
+# mkdir -p build
+# cd build
+# cmake ..
+# make
+# make packagedemo
 
 # Done!
-echo -e "************ Demo binaries built and copied into overlay directory. ***************
-            Run 'make image' in the Keystone build dir, and the demo binaries should
-            be available in qemu next time you start it!"
+# echo -e "************ Demo binaries built and copied into overlay directory. ***************
+#             Run 'make image' in the Keystone build dir, and the demo binaries should
+#             be available in qemu next time you start it!"
