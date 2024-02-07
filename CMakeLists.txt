@@ -66,7 +66,7 @@ set(package_name "agent.ke")
 set(package_script "./agent.riscv")
 
 add_executable(${host_bin} ${host_src})
-target_link_libraries(${host_bin} ${KEYSTONE_LIB_HOST} ${KEYSTONE_LIB_EDGE} ${KEYSTONE_LIB_VERIFIER} Threads::Threads)
+target_link_libraries(${host_bin} ${KEYSTONE_LIB_HOST} ${KEYSTONE_LIB_EDGE} ${KEYSTONE_LIB_VERIFIER} Threads::Threads pthread)
 
 set(eyrie_files_to_copy .options_log eyrie-rt)
 add_eyrie_runtime(${eapp_bin}-eyrie

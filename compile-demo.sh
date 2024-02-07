@@ -19,7 +19,9 @@ fi
 export MBEDTLS_DIR_HOST=$(pwd)/mbedtls_host
 export MBEDTLS_DIR_HOST_NON_RISCV=$(pwd)/mbedtls_host_non_riscv
 
-cd ../build
+cd ..
+mkdir -p build
+cd build
 export KEYSTONE_SDK_NON_RISCV_DIR=$(pwd)/../../keystone/sdk_std/build64
 cmake ..
 make
